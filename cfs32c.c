@@ -140,6 +140,30 @@ MATRIX load_data(char* filename, int *n, int *k) {
 	return data;
 }
 
+MATRIX load_data_int(char* filename, int *n, int *k) {
+    FILE* fp;
+    int rows, cols, status, i;
+   
+    fp = fopen(filename, "rb");
+   
+    if (fp == NULL){
+        printf("'%s': bad data file name!\n", filename);
+        exit(0);
+    }
+   
+    status = fread(&cols, sizeof(int), 1, fp);
+    status = fread(&rows, sizeof(int), 1, fp);
+   
+    MATRIX data = alloc_matrix(rows,cols);
+    status = fread(data, sizeof(int), rows*cols, fp);
+    fclose(fp);
+   
+    *n = rows;
+    *k = cols;
+   
+    return data;
+}
+
 /*
 * 	save_data
 * 	=========
@@ -287,21 +311,14 @@ float point_biserial_coefficient(params* input, int feature) {
 	return parte1 * parte2;
 }
 
+//input->ds[i][j] = i * input->d + j
 void cfs(params* input){
 	// ------------------------------------------------------------
 	// Codificare qui l'algoritmo di Correlation Features Selection
 	// ------------------------------------------------------------
 
-	//input->ds[i][j] = i * input->d + j
-	float classe = 1.000000;
-	//int f = 0;
-	for(int f=0; f < input->d; f++) {
-		//printf("Media totale feature n°%d: %f --- Media classe %f feature n°%d: %f\n", f, media_totale(input, f),classe, f, media_classe(input, f, classe));
-		
-		//printf("Deviazione standard per la feature n°%d = %f\n", f, deviazione_standard(input,f));
-		
-		printf("PBC per la feature n°%d = %f\n",f,point_biserial_coefficient(input,f));
-	}
+	for(int i=0; i < input->N; i++)
+		printf("PBC per la feature %d = %f\n", i, point_biserial_coefficient(input,i));
 }
 
 int main(int argc, char** argv) {
