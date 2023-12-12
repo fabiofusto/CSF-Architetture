@@ -331,34 +331,27 @@ float pearson_correlation_coefficient(params* input, int feature_x, int feature_
 
 // funzione che calcola il merito di un insieme di features
 float merit_score(params* input, int S_size, int feature) {
-	float merit = 0.0, pcc = 0.0, pbc = 0.0;
-
+	float pcc = 0.0, pbc = 0.0;
+	
+	for(int i = 0; i < S_size; i++) {
+		pbc += point_biserial_coefficient(input, input->out[i]);
+		pcc += pearson_correlation_coefficient(input, feature, input->out[i]);
+	}
+	
 	pbc += point_biserial_coefficient(input, feature);
 	
-	if(S_size > 0) {
-		for(int i = 0; i < S_size; i++) {
-			pcc += pearson_correlation_coefficient(input, feature, input->out[i]);
-		}
-	}
+	float pbc_medio = fabs(pbc / (S_size + 1));
+	float pcc_medio = S_size > 0 ? fabs(pcc / (S_size + 1)) : 0;
 
-	float pbc_medio = abs(pbc / S_size + 1);
-	float pcc_medio = abs(pcc / S_size + 1);
-
-	float numeratore, denominatore;
-	numeratore = input->k * pbc_medio;
-	denominatore = sqrt(input->k + input->k * (input->k-1) * pcc_medio);
-
-	return (float) numeratore / denominatore;
-
-	//printf("FEATURE %d -> pbc_medio=%f, pcc_medio=%f\n", feature, pbc_medio, pcc_medio);
+	return (float) (input->k * pbc_medio) / (sqrt(input->k + input->k * (input->k-1) * pcc_medio));
 }
+
 
 //input->ds[i][j] = i * input->d + j
 void cfs(params* input){
 	// ------------------------------------------------------------
 	// Codificare qui l'algoritmo di Correlation Features Selection
 	// ------------------------------------------------------------
-
 
 	int S_size = 0;
 	float merit_scores[input->d];
@@ -384,20 +377,18 @@ void cfs(params* input){
 			// Calcola il merito per S U {i}
 			merit_scores[i] = merit_score(input, S_size, i);
 
-			
 			// Aggiorna il la feature con il punteggio massimo
 			if(merit_scores[i] > max_merit_score) {
 				max_merit_score = merit_scores[i];
 				max_merit_feature = i;
 			}
-
-			// Aggiungi la feature con il punteggio massimo ad input->out
-			S_size++;
-			input->out[S_size] = max_merit_feature;
-			input->sc += max_merit_score;
-			
 		}
+			// Aggiungi la feature con il punteggio massimo ad input->out
+			input->out[S_size++] = max_merit_feature;
+			//S_size++;
+			input->sc += max_merit_score;
 	}
+	printf("last element=%d\n", input->out[2]);
 }
 
 int main(int argc, char** argv) {
