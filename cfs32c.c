@@ -257,7 +257,7 @@ float media_totale(params* input, int feature) {
 		sum += input->ds[i * input->d + feature];
 		count++;
 	}
-	//printf("COUNT TOTALE: %d\n", count);
+	
 	return count > 0 ? sum / count : 0;
 }
 
@@ -273,7 +273,6 @@ float media_classe(params* input, int feature, float gruppo) {
 		}
 	}
 	
-	//printf("COUNT CLASSE 0: %d\n", count);
 	return count > 0 ? sum / count : 0;
 }
 
@@ -311,14 +310,94 @@ float point_biserial_coefficient(params* input, int feature) {
 	return parte1 * parte2;
 }
 
+float pearson_correlation_coefficient(params* input, int feature_x, int feature_y) {
+	float diff_x = 0, diff_y = 0;
+	float numeratore = 0, denominatore_1 = 0, denominatore_2 = 0;
+	
+	float media_feature_x = media_totale(input, feature_x);
+	float media_feature_y = media_totale(input, feature_y);
+
+	for(int i=0; i < input->N; i++) {
+		diff_x = input->ds[i * input->d + feature_x] - media_feature_x;
+		diff_y = input->ds[i * input->d + feature_y] - media_feature_y;
+		numeratore += diff_x * diff_y;
+
+		denominatore_1 += pow(diff_x, 2);
+		denominatore_2 += pow(diff_y, 2);
+	}
+
+	return (float) numeratore / (sqrt(denominatore_1) * sqrt(denominatore_2));
+}
+
+// funzione che calcola il merito di un insieme di features
+float merit_score(params* input, int S_size, int feature) {
+	float merit = 0.0, pcc = 0.0, pbc = 0.0;
+
+	pbc += point_biserial_coefficient(input, feature);
+	
+	if(S_size > 0) {
+		for(int i = 0; i < S_size; i++) {
+			pcc += pearson_correlation_coefficient(input, feature, input->out[i]);
+		}
+	}
+
+	float pbc_medio = abs(pbc / S_size + 1);
+	float pcc_medio = abs(pcc / S_size + 1);
+
+	float numeratore, denominatore;
+	numeratore = input->k * pbc_medio;
+	denominatore = sqrt(input->k + input->k * (input->k-1) * pcc_medio);
+
+	return (float) numeratore / denominatore;
+
+	//printf("FEATURE %d -> pbc_medio=%f, pcc_medio=%f\n", feature, pbc_medio, pcc_medio);
+}
+
 //input->ds[i][j] = i * input->d + j
 void cfs(params* input){
 	// ------------------------------------------------------------
 	// Codificare qui l'algoritmo di Correlation Features Selection
 	// ------------------------------------------------------------
 
-	for(int i=0; i < input->N; i++)
-		printf("PBC per la feature %d = %f\n", i, point_biserial_coefficient(input,i));
+
+	int S_size = 0;
+	float merit_scores[input->d];
+
+	while(S_size < input->k) {
+		float max_merit_score = -1;
+		int max_merit_feature = -1;
+
+		// Calcola il merito per ogni feature non presente ancora in S,
+		// trova la feature con il punteggio massimo e la aggiunge al vettore input->out
+		
+		for(int i = 0; i < input->d; i++) {
+			// Salta la feature se è già in S
+            int in_S = 0;
+            for (int j = 0; j < S_size; j++) {
+                if (input->out[j] == i) {
+                    in_S = 1;
+                    break;
+                }
+            }
+            if (in_S) continue;
+
+			// Calcola il merito per S U {i}
+			merit_scores[i] = merit_score(input, S_size, i);
+
+			
+			// Aggiorna il la feature con il punteggio massimo
+			if(merit_scores[i] > max_merit_score) {
+				max_merit_score = merit_scores[i];
+				max_merit_feature = i;
+			}
+
+			// Aggiungi la feature con il punteggio massimo ad input->out
+			S_size++;
+			input->out[S_size] = max_merit_feature;
+			input->sc += max_merit_score;
+			
+		}
+	}
 }
 
 int main(int argc, char** argv) {
@@ -446,7 +525,7 @@ int main(int argc, char** argv) {
 	}
 
 	// COMMENTARE QUESTA RIGA!
-	prova(input);
+	// prova(input);
 	//
 
 	//
