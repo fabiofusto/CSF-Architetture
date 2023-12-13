@@ -385,10 +385,11 @@ void cfs(params* input){
 		}
 			// Aggiungi la feature con il punteggio massimo ad input->out
 			input->out[S_size++] = max_merit_feature;
-			//S_size++;
-			input->sc += max_merit_score;
+			//input->sc += max_merit_score;
 	}
-	printf("last element=%d\n", input->out[2]);
+
+	for(int i = 0; i < input->k; i++)
+        input->sc += merit_score(input, input->k, input->out[i]);
 }
 
 int main(int argc, char** argv) {
@@ -408,7 +409,8 @@ int main(int argc, char** argv) {
 	input->ds = NULL;
 	input->labels = NULL;
 	input->k = -1;
-	input->sc = -1;
+	// Changed sc initialization from -1 to 0.0
+	input->sc = 0.0;
 
 	input->silent = 0;
 	input->display = 0;
