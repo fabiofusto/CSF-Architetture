@@ -240,7 +240,7 @@ float media_totale(params* input, int feature) {
 	float sum = 0;
 	int count = 0;
 	
-	for(int i=0; i < input->N; i++) {
+	for(int i = 0; i < input->N; i++) {
 		sum += input->ds[i * input->d + feature];
 		count++;
 	}
@@ -254,7 +254,7 @@ float pbc(params* input, int feature) {
 	float media_classe_0 = 0.0, media_classe_1 = 0.0;
     int n0 = 0, n1 = 0;
 
-	for(int i=0; i < input->N; i++) {
+	for(int i = 0; i < input->N; i++) {
 		// Valore attuale nella colonna corrispondente alla feature
 		float val = input->ds[i * input->d + feature];
 
@@ -272,7 +272,7 @@ float pbc(params* input, int feature) {
 	}
 
 	// Calcolo le due medie di classe e la media totale
-	if(n0>0 && n1>0) {
+	if(n0 > 0 && n1 > 0) {
 		media_classe_0 = (float) somma_classe_0 / n0;
 		media_classe_1 = (float) somma_classe_1 / n1;
 	}
@@ -280,7 +280,7 @@ float pbc(params* input, int feature) {
 
 	// Calcolo la deviazione standard
 	float somma_diff_quad = 0.0;
-	for(int i=0; i < input->N; i++) {
+	for(int i = 0; i < input->N; i++) {
 		float diff = input->ds[i * input->d + feature] - media_tot;
 		somma_diff_quad += diff * diff;
 	}
@@ -295,7 +295,7 @@ float pbc(params* input, int feature) {
 	float sotto_radice = (float) (n0 * n1) / (input->N * input->N);
 	
 	// Calcolo il valore finale del pbc
-	return parte1 * sqrt(sotto_radice); 
+	return parte1 * sqrt(sotto_radice);
 }
 
 // Funzione che calcola il Pearson's Correlation Coefficient per due feature
@@ -307,7 +307,7 @@ float pcc(params* input, int feature_x, int feature_y) {
     float media_feature_x = media_totale(input, feature_x);
     float media_feature_y = media_totale(input, feature_y);
 
-    for(int i=0; i < input->N; i++) {
+    for(int i = 0; i < input->N; i++) {
         // Calcolo la differenza tra il valore corrente della feature e la media totale della feature
 		diff_x = input->ds[i * input->d + feature_x] - media_feature_x;
         diff_y = input->ds[i * input->d + feature_y] - media_feature_y;
@@ -326,29 +326,11 @@ float pcc(params* input, int feature_x, int feature_y) {
 
 // Funzione che calcola il merito di un insieme di features
 float merit_score(params* input, int* S, int S_size, int feature) {
-	
 	float pcc_sum = 0.0, pbc_sum = 0.0;
 	
 	// Se l'insieme S è vuoto, il merito è uguale al pbc della feature da analizzare
 	if(S_size == 0) 
 		return (float) fabs(pbc(input, feature));
-
-	if(feature == -1) {
-		for(int i = 0; i < S_size; i++) {
-			pbc_sum += fabs(pbc(input, S[i]));
-
-    		for(int j = i + 1; j < S_size; j++) 
-        		pcc_sum += fabs(pcc(input, S[i], S[j]));
-		}
-		
-		// Calcola il pbc medio per tutte le feature
-		float pbc_medio = pbc_sum / (S_size);
-		// Calcola il pcc medio per tutte le coppie di feature
-		float pcc_medio = pcc_sum / ((S_size - 1) * S_size / 2);
-
-		// Calcola e restituisce il merito dell'insieme S corrente + la feature da analizzare
-		return (float) (S_size * pbc_medio) / sqrt(S_size + S_size * (S_size - 1) * pcc_medio);
-	}
 
 	// Calcola il pbc e il pcc dell'insieme S corrente + la feature da analizzare
 	for(int i = 0; i < S_size; i++) {
@@ -384,10 +366,10 @@ void cfs(params* input){
 	// Vettore che rappresenta l'insieme S
 	int* S = (int*) calloc(input->k , sizeof(int));
 
+	float max_merit_score = -1;
+	int max_merit_feature = -1;
+	
 	while(S_size < input->k) {
-		float max_merit_score = -1;
-		int max_merit_feature = -1;
-
 		// Calcola il merito per ogni feature non presente ancora in S,
 		// trova la feature con il punteggio massimo di merito e la aggiunge al vettore S
        
@@ -410,18 +392,8 @@ void cfs(params* input){
 		is_feature_in_S[max_merit_feature] = 1;
 	}
 
-	// Calcola il punteggio di merito totale dell'insieme finale S
-	float score = merit_score(input, S, S_size, -1);
-	printf("SCORE: %f - FEATURES:[", score);
-
-	// Stampa l'insieme finale S
-	for(int i=0; i < input->k; i++){
-		if(i == input->k-1)
-			printf("%i", S[i]);
-		else
-			printf("%i,", S[i]);
-	}
-	printf("]\n");
+	input->sc = max_merit_score;
+	memcpy(input->out, S, input->k * sizeof(int));
 
 	free(is_feature_in_S);
 	free(S);
