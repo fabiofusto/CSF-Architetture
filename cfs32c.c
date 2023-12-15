@@ -340,14 +340,14 @@ float merit_score(params* input, int* S, int S_size, int feature) {
     		for(int j = i + 1; j < S_size; j++) 
         		pcc_sum += fabs(pcc(input, S[i], S[j]));
 		}
-
-		// Calcola il pbc medio
-		float pbc_medio = pbc_sum / (S_size + 1);
+		
+		// Calcola il pbc medio per tutte le feature
+		float pbc_medio = pbc_sum / (S_size);
 		// Calcola il pcc medio per tutte le coppie di feature
-		float pcc_medio = pcc_sum / ((S_size + 1) * S_size / 2);
+		float pcc_medio = pcc_sum / ((S_size - 1) * S_size / 2);
 
 		// Calcola e restituisce il merito dell'insieme S corrente + la feature da analizzare
-		return (float) ((S_size + 1) * pbc_medio) / sqrt((S_size + 1) + (S_size + 1) * S_size * pcc_medio);
+		return (float) (S_size * pbc_medio) / sqrt(S_size + S_size * (S_size - 1) * pcc_medio);
 	}
 
 	// Calcola il pbc e il pcc dell'insieme S corrente + la feature da analizzare
@@ -362,7 +362,7 @@ float merit_score(params* input, int* S, int S_size, int feature) {
 	// Aggiunge il pbc della feature da analizzare
 	pbc_sum += fabs(pbc(input, feature));
 	
-	// Calcola il pbc medio
+	// Calcola il pbc medio per tutte le feature
 	float pbc_medio = pbc_sum / (S_size + 1);
 	// Calcola il pcc medio per tutte le coppie di feature
 	float pcc_medio = pcc_sum / ((S_size + 1) * S_size / 2);
@@ -411,9 +411,8 @@ void cfs(params* input){
 	}
 
 	// Calcola il punteggio di merito totale dell'insieme finale S
-	// DA FARE
 	float score = merit_score(input, S, S_size, -1);
-	printf("SCORE: %f - FEATURES:[",score);
+	printf("SCORE: %f - FEATURES:[", score);
 
 	// Stampa l'insieme finale S
 	for(int i=0; i < input->k; i++){
