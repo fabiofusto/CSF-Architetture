@@ -325,7 +325,7 @@ float pcc(params* input, int feature_x, int feature_y) {
 }
 
 // Funzione che calcola il merito di un insieme di features
-float merit_score(params* input, int* S, int S_size, int feature) {
+float merit_score(params* input, int S_size, int feature) {
 	float pcc_sum = 0.0, pbc_sum = 0.0;
 	
 	// Se l'insieme S è vuoto, il merito è uguale al pbc della feature da analizzare
@@ -334,11 +334,11 @@ float merit_score(params* input, int* S, int S_size, int feature) {
 
 	// Calcola il pbc e il pcc dell'insieme S corrente + la feature da analizzare
 	for(int i = 0; i < S_size; i++) {
-		pbc_sum += fabs(pbc(input, S[i]));
-		pcc_sum += fabs(pcc(input, feature, S[i]));
+		pbc_sum += fabs(pbc(input, input->out[i]));
+		pcc_sum += fabs(pcc(input, feature, input->out[i]));
 
     	for(int j = i + 1; j < S_size; j++) 
-        	pcc_sum += fabs(pcc(input, S[i], S[j]));
+        	pcc_sum += fabs(pcc(input, input->out[i], input->out[j]));
 	}
 
 	// Aggiunge il pbc della feature da analizzare
@@ -363,9 +363,6 @@ void cfs(params* input){
 	// Vettore che tiene traccia della presenza di ogni feature in S
 	int* is_feature_in_S = (int*) calloc(input->d , sizeof(int));
 
-	// Vettore che rappresenta l'insieme S
-	int* S = (int*) calloc(input->k , sizeof(int));
-
 	float max_merit_score = -1;
 	int max_merit_feature = -1;
 	
@@ -378,7 +375,7 @@ void cfs(params* input){
 			if (is_feature_in_S[i]) continue;
 
 			// Calcola il merito per S U {i}
-			float merit = merit_score(input, S, S_size, i);
+			float merit = merit_score(input, S_size, i);
 
 			// Aggiorna la feature con il punteggio massimo
 			if(merit > max_merit_score) {
@@ -388,15 +385,13 @@ void cfs(params* input){
 		}
 	
 		// Aggiungi la feature con il punteggio massimo ad S
-		S[S_size++] = max_merit_feature;
+		input->out[S_size++] = max_merit_feature;
 		is_feature_in_S[max_merit_feature] = 1;
 	}
 
 	input->sc = max_merit_score;
-	memcpy(input->out, S, input->k * sizeof(int));
 
 	free(is_feature_in_S);
-	free(S);
 }
 
 int main(int argc, char** argv) {
