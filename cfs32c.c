@@ -474,7 +474,7 @@ float merit_score(params* input, int S_size, int feature, float* means, float* p
 }
 
 // Come accedere ad un elemento del dataset:	input->ds[i][j] = i * input->d + j
-// VALORI ATTESI -> score: 0.053390 features: 45 25 7 33 47
+// VALORI ATTESI k=5 -> score: 0.053390 features: [45,25,7,33,47]
 
 void cfs(params* input){
 	// Contatore che tiene traccia della dimensione attuale di S
