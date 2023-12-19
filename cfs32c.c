@@ -1,44 +1,3 @@
-/**************************************************************************************
-* 
-* CdL Magistrale in Ingegneria Informatica
-* Corso di Architetture e Programmazione dei Sistemi di Elaborazione - a.a. 2020/21
-* 
-* Progetto dell'algoritmo Attention mechanism 221 231 a
-* in linguaggio assembly x86-32 + SSE
-* 
-* Fabrizio Angiulli, novembre 2022
-* 
-**************************************************************************************/
-
-/*
-* 
-* Software necessario per l'esecuzione:
-* 
-*    NASM (www.nasm.us)
-*    GCC (gcc.gnu.org)
-* 
-* entrambi sono disponibili come pacchetti software 
-* installabili mediante il packaging tool del sistema 
-* operativo; per esempio, su Ubuntu, mediante i comandi:
-* 
-*    sudo apt-get install nasm
-*    sudo apt-get install gcc
-* 
-* potrebbe essere necessario installare le seguenti librerie:
-* 
-*    sudo apt-get install lib32gcc-4.8-dev (o altra versione)
-*    sudo apt-get install libc6-dev-i386
-* 
-* Per generare il file eseguibile:
-* 
-* nasm -f elf32 att32.nasm && gcc -m32 -msse -O0 -no-pie sseutils32.o att32.o att32c.c -o att32c -lm && ./att32c $pars
-* 
-* oppure
-* 
-* ./runatt32
-* 
-*/
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -227,26 +186,7 @@ void save_out(char* filename, type sc, int* X, int k) {
 // PROCEDURE ASSEMBLY
 
 extern void prova(params* input);
-
-// Funzione di comparazione di due float
-int compare_float(float a, float b) {
-	return fabs(a - b) < 0.000001 ? 1 : 0;
-}
-
-// Funzione che calcola la media totale per ogni feature
-float* pre_calculate_means(params* input) {
-    float* means = alloc_matrix(input->d, 1);
-
-    for(int feature = 0; feature < input->d; feature++) {
-        float sum = 0.0;
-
-        for(int i = 0; i < input->N; i++) 
-            sum += input->ds[i * input->d + feature];
-    
-        means[feature] = sum / input->N;
-    }
-    return means;
-}
+extern void pre_calculate_means_asm(params* input);
 
 /* Funzione che calcola la media totale dei valori di una feature
 float media_totale(params* input, int feature) {
@@ -311,6 +251,81 @@ float pbc_OLD(params* input, int feature) {
 	return parte1 * sqrt(sotto_radice);
 }*/
 
+/* Funzione che calcola il Pearson's Correlation Coefficient per due feature
+float pcc_OLD(params* input, int feature_x, int feature_y) {
+	float diff_x = 0.0, diff_y = 0.0;
+    float numeratore = 0.0, denominatore_x = 0.0, denominatore_y = 0.0;
+    
+	// Calcolo la media totale per i valori delle due feature
+    float media_feature_x = media_totale(input, feature_x);
+    float media_feature_y = media_totale(input, feature_y);
+
+    for(int i = 0; i < input->N; i++) {
+        // Calcolo la differenza tra il valore corrente della feature e la media totale della feature
+		diff_x = input->ds[i * input->d + feature_x] - media_feature_x;
+        diff_y = input->ds[i * input->d + feature_y] - media_feature_y;
+        
+		// Calcolo la sommatoria del prodotto tra le differenze
+		numeratore += diff_x * diff_y;
+
+		// Calcolo la sommatoria del quadrato delle differenze
+        denominatore_x += diff_x * diff_x;
+        denominatore_y += diff_y * diff_y;
+    }
+
+	// Calcolo il valore finale del pcc
+    return (float) numeratore / (sqrt(denominatore_x) * sqrt(denominatore_y));
+}*/
+
+/* Funzione che calcola il merito di un insieme di features
+float merit_score_OLD(params* input, int S_size, int feature) {
+	float pcc_sum = 0.0, pbc_sum = 0.0;
+	
+	// Se l'insieme S è vuoto, il merito è uguale al pbc della feature da analizzare
+	if(S_size == 0) 
+		return (float) fabs(pbc(input, feature));
+
+	// Calcola il pbc e il pcc dell'insieme S corrente + la feature da analizzare
+	for(int i = 0; i < S_size; i++) {
+		pbc_sum += fabs(pbc(input, input->out[i]));
+		pcc_sum += fabs(pcc(input, feature, input->out[i]));
+
+    	for(int j = i + 1; j < S_size; j++) 
+        	pcc_sum += fabs(pcc(input, input->out[i], input->out[j]));
+	}
+
+	// Aggiunge il pbc della feature da analizzare
+	pbc_sum += fabs(pbc(input, feature));
+	
+	// Calcola il pbc medio per tutte le feature
+	float pbc_medio = pbc_sum / (S_size + 1);
+	// Calcola il pcc medio per tutte le coppie di feature
+	float pcc_medio = pcc_sum / ((S_size + 1) * S_size / 2);
+
+	// Calcola e restituisce il merito dell'insieme S corrente + la feature da analizzare
+	return (float) ((S_size + 1) * pbc_medio) / sqrt((S_size + 1) + (S_size + 1) * S_size * pcc_medio);
+}*/
+
+/* Funzione di comparazione di due float
+int compare_float(float a, float b) {
+	return fabs(a - b) < 0.000001 ? 1 : 0;
+}*/
+
+// Funzione che calcola la media totale per ogni feature
+float* pre_calculate_means(params* input) {
+    float* means = alloc_matrix(input->d, 1);
+
+    for(int feature = 0; feature < input->d; feature++) {
+        float sum = 0.0;
+
+        for(int i = 0; i < input->N; i++) 
+            sum += input->ds[i * input->d + feature];
+    
+        means[feature] = sum / input->N;
+    }
+    return means;
+}
+
 // Funzione che calcola il Point Biserial Correlation Coefficient per una feature
 float pbc(params* input, int feature, float mean) {
 	float sum_class_0 = 0.0, sum_class_1 = 0.0;
@@ -322,7 +337,7 @@ float pbc(params* input, int feature, float mean) {
 		float value = input->ds[i * input->d + feature];
 
 		// Controllo la classe di appartenenza e incremento la somma e la numerosità
-		if(compare_float(input->labels[i], 0.0)) {
+		if(input->labels[i] == 0.0) {
 			sum_class_0 += value;
 			n0++;
 		} else {
@@ -367,32 +382,6 @@ float* pre_calculate_pbc(params* input, float* means) {
 	return pbc_values;
 }
 
-/* Funzione che calcola il Pearson's Correlation Coefficient per due feature
-float pcc_OLD(params* input, int feature_x, int feature_y) {
-	float diff_x = 0.0, diff_y = 0.0;
-    float numeratore = 0.0, denominatore_x = 0.0, denominatore_y = 0.0;
-    
-	// Calcolo la media totale per i valori delle due feature
-    float media_feature_x = media_totale(input, feature_x);
-    float media_feature_y = media_totale(input, feature_y);
-
-    for(int i = 0; i < input->N; i++) {
-        // Calcolo la differenza tra il valore corrente della feature e la media totale della feature
-		diff_x = input->ds[i * input->d + feature_x] - media_feature_x;
-        diff_y = input->ds[i * input->d + feature_y] - media_feature_y;
-        
-		// Calcolo la sommatoria del prodotto tra le differenze
-		numeratore += diff_x * diff_y;
-
-		// Calcolo la sommatoria del quadrato delle differenze
-        denominatore_x += diff_x * diff_x;
-        denominatore_y += diff_y * diff_y;
-    }
-
-	// Calcolo il valore finale del pcc
-    return (float) numeratore / (sqrt(denominatore_x) * sqrt(denominatore_y));
-}*/
-
 // Funzione che calcola il Pearson's Correlation Coefficient per due feature
 float pcc(params* input, int feature_x, int feature_y, float mean_feature_x, float mean_feature_y) {
 	float diff_x = 0.0, diff_y = 0.0;
@@ -414,35 +403,6 @@ float pcc(params* input, int feature_x, int feature_y, float mean_feature_x, flo
 	// Calcolo il valore finale del pcc
     return (float) numerator / (sqrt(denominator_x) * sqrt(denominator_y));
 }
-
-/* Funzione che calcola il merito di un insieme di features
-float merit_score_OLD(params* input, int S_size, int feature) {
-	float pcc_sum = 0.0, pbc_sum = 0.0;
-	
-	// Se l'insieme S è vuoto, il merito è uguale al pbc della feature da analizzare
-	if(S_size == 0) 
-		return (float) fabs(pbc(input, feature));
-
-	// Calcola il pbc e il pcc dell'insieme S corrente + la feature da analizzare
-	for(int i = 0; i < S_size; i++) {
-		pbc_sum += fabs(pbc(input, input->out[i]));
-		pcc_sum += fabs(pcc(input, feature, input->out[i]));
-
-    	for(int j = i + 1; j < S_size; j++) 
-        	pcc_sum += fabs(pcc(input, input->out[i], input->out[j]));
-	}
-
-	// Aggiunge il pbc della feature da analizzare
-	pbc_sum += fabs(pbc(input, feature));
-	
-	// Calcola il pbc medio per tutte le feature
-	float pbc_medio = pbc_sum / (S_size + 1);
-	// Calcola il pcc medio per tutte le coppie di feature
-	float pcc_medio = pcc_sum / ((S_size + 1) * S_size / 2);
-
-	// Calcola e restituisce il merito dell'insieme S corrente + la feature da analizzare
-	return (float) ((S_size + 1) * pbc_medio) / sqrt((S_size + 1) + (S_size + 1) * S_size * pcc_medio);
-}*/
 
 // Funzione che calcola il merito di un insieme di features
 float merit_score(params* input, int S_size, int feature, float* means, float* pbc_values) {
@@ -483,8 +443,8 @@ void cfs(params* input){
 	// Vettore che tiene traccia della presenza di ogni feature in S
 	int* is_feature_in_S = calloc(input->d, sizeof(int));
 
-	float max_merit_score = -1;
-	int max_merit_feature = -1;
+	// Variabile che contiene lo score finale
+	float final_score = 0.0;
 
 	// Vettore che contiene la media totale di ogni feature
 	float* means = pre_calculate_means(input);
@@ -492,6 +452,8 @@ void cfs(params* input){
 	float* pbc_values = pre_calculate_pbc(input, means);
 	
 	while(S_size < input->k) {
+		float max_merit_score = -1;
+		int max_merit_feature = -1;
 		// Calcola il merito per ogni feature non presente ancora in S,
 		// trova la feature con il punteggio massimo di merito e la aggiunge al vettore S
 		for(int i = 0; i < input->d; i++) {
@@ -508,6 +470,9 @@ void cfs(params* input){
 				max_merit_feature = i;
 			}
 		}
+
+		
+		final_score = max_merit_score;
 	
 		// Aggiungi la feature con il punteggio massimo ad S
 		input->out[S_size++] = max_merit_feature;
@@ -515,7 +480,7 @@ void cfs(params* input){
 	}
 
 	// Salva lo score dell'insieme finale S
-	input->sc = max_merit_score;
+	input->sc = final_score;
 
 	free(means);
 	free(pbc_values);
@@ -646,9 +611,7 @@ int main(int argc, char** argv) {
 		printf("Number of features to extract: %d\n", input->k);
 	}
 
-	// COMMENTARE QUESTA RIGA!
-	// prova(input);
-	//
+	
 
 	//
 	// Correlation Features Selection
@@ -688,6 +651,11 @@ int main(int argc, char** argv) {
 
 	if(!input->silent)
 		printf("\nDone.\n");
+
+	// COMMENTARE QUESTA RIGA!
+	//prova(input);
+	pre_calculate_means_asm(input);
+	//
 
 	dealloc_matrix(input->ds);
 	dealloc_matrix(input->labels);
