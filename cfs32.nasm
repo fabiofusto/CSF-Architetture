@@ -2,10 +2,10 @@
 
 section .data			; Sezione contenente dati inizializzati
 
+
 section .bss			; Sezione contenente dati non inizializzati
 	alignb 16
 	sc		 resd		1
-	label 	 resd 		1
 
 section .text			; Sezione contenente il codice macchina
 
@@ -50,86 +50,12 @@ extern free_block
 ; Funzioni
 ; ------------------------------------------------------------
 
-global pre_calculate_means_asm
-
-input		equ		8
-
-pre_calculate_means_asm:
-		; ------------------------------------------------------------
-		; Sequenza di ingresso nella funzione
-		; ------------------------------------------------------------
-		push		ebp		; salva il Base Pointer
-		mov		ebp, esp	; il Base Pointer punta al Record di Attivazione corrente
-		push		ebx		; salva i registri da preservare
-		push        ecx
-		push		esi
-		push		edi
-
-		mov EAX, [EBP+input]	; indirizzo della struttura contenente i parametri
-        ; [EAX] input->ds; 			// dataset
-
-		; Load N and d into EBX and ECX
-        mov ebx, [eax+20] ; Load the value at memory address (eax+20) into ebx. This is likely the value of N (number of elements).
-        mov ecx, [eax+24] ; Load the value at memory address (eax+24) into ecx. This is likely the value of d (number of features).
-
-        xor edx, edx ; indice di feature
-
-		feature_loop: 
-			cmp edx, ecx ; se edx < ecx
-			jge fine ; salta a fine
-
-			xor xmm0, xmm0 ; somma delle feature
-			xor esi, esi ; indice di riga
-		
-		element_loop:
-			cmp esi, ebx ; se esi < ebx
-			jge media ; salta a element_loop_end
-
-			
-
-			movss xmm1, [eax + esi*4] 
-			addss xmm0, xmm1
-
-			inc esi
-			imul esi, ecx
-			addss esi, edx
-			jmp element_loop
-
-			
-
-		media:
-			xor xmm2, xmm2
-			movss xmm2, xmm0
-			divss xmm2, ebx
-
-			inc edx
-			jmp feature_loop
-
-
-
-		fine:
-
-		; ------------------------------------------------------------
-		; Sequenza di uscita dalla funzione
-		; ------------------------------------------------------------
-		mov eax, esi
-		pop	edi		; ripristina i registri da preservare
-		pop	esi
-		pop ecx
-		pop	ebx
-		mov	esp, ebp	; ripristina lo Stack Pointer
-		pop	ebp		; ripristina il Base Pointer
-		ret			; torna alla funzione C chiamante
-
-
 global prova
 
 input		equ		8
 
 msg	db	'sc:',32,0
 nl	db	10,0
-
-
 
 prova:
 		; ------------------------------------------------------------
@@ -162,21 +88,6 @@ prova:
 		prints msg            
 		printss sc     
 		prints nl
-
-        mov edi, [EAX+4]
-        mov ebx, [EAX+20]
-
-		xor esi, esi
-		
-	for_loop:
-        movss xmm0, [edi+esi*4]
-		movss [label], xmm0
-		printss label
-		
-		inc esi
-
-		cmp esi, ebx
-		jl for_loop
 
 		; ------------------------------------------------------------
 		; Sequenza di uscita dalla funzione
