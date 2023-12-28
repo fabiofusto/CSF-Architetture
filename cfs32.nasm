@@ -1,7 +1,7 @@
 %include "sseutils32.nasm"
 
 section .data			; Sezione contenente dati inizializzati
-
+    k dd 0
 
 section .bss			; Sezione contenente dati non inizializzati
 	alignb 16
@@ -10,7 +10,7 @@ section .bss			; Sezione contenente dati non inizializzati
 	somma    resd       1
 	prova1    resd       1
 	prova2    resd       1
-	k        resd       1
+	
 
 section .text			; Sezione contenente il codice macchina
 
@@ -125,12 +125,14 @@ pre_calculate_means_asm:
 
         xor esi,esi ; indice scorrimento colonne
 		
+        mov [k], ecx
+
 		for_loop1: cmp esi,edx
 		       	   jge fine
 		           xorps xmm0,xmm0 ; vettore usato per somma
 			       xor edi,edi
-		for_loop2: cmp edi, ecx; controlliamo il residuo o  
-		           jge residuo
+		for_loop2: cmp edi,ecx ;controlliamo il residuo o  
+				   jge residuo
 				   xor eax,eax
 				   mov eax,esi
 				   imul eax,ecx
@@ -141,8 +143,9 @@ pre_calculate_means_asm:
 				   add edi,4
 				   jmp for_loop2;
 
-		residuo: cmp edi,0
-		         jge media
+		residuo: sub edi,ecx
+		         cmp edi,0
+		         jle media
                  addss xmm0,[ebx+edi*4]
 		         dec edi
                  jmp residuo
