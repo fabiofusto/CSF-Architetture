@@ -197,7 +197,8 @@ void transform_to_column_major(params* input) {
 
 // PROCEDURE ASSEMBLY
 
-extern void prova(params* input);
+//extern void prova(params* input);
+extern void pre_calculate_means_asm(params* input, float* means);
 
 // Funzione che calcola la media totale per ogni feature
 VECTOR pre_calculate_means(params* input) {
@@ -208,8 +209,8 @@ VECTOR pre_calculate_means(params* input) {
 
         for(int i = 0; i < input->N; i++) 
             sum += input->ds[feature * input->N + i];
-    
-        means[feature] = sum / input->N;
+           
+        means[feature] = sum / input->N; 
     }
     return means;
 }
@@ -333,7 +334,12 @@ void cfs(params* input){
 	type final_score = 0.0;
 
 	// Vettore che contiene la media totale di ogni feature
-	VECTOR means = pre_calculate_means(input);
+	//VECTOR means = pre_calculate_means(input);
+	VECTOR means=alloc_matrix(input->d,1);
+	pre_calculate_means_asm(input, means);
+	for(int i=0;i<input->d;i++){
+		printf("%f\n",means[i]);
+	}
 	// Vettore che contiene il pbc di ogni feature
 	VECTOR pbc_values = pre_calculate_pbc(input, means);
 	
