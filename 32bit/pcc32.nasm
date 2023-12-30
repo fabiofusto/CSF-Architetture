@@ -1,4 +1,4 @@
-%include "sseutils32.nasm"
+%include "./32bit/sseutils32.nasm"
 
 section .data			; Sezione contenente dati inizializzati
     i    dd     0

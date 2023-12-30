@@ -22,19 +22,6 @@ typedef struct {
 	int silent;
 } params;
 
-/*
-* 
-*	Le funzioni sono state scritte assumento che le matrici siano memorizzate 
-* 	mediante un array (float*), in modo da occupare un unico blocco
-* 	di memoria, ma a scelta del candidato possono essere 
-* 	memorizzate mediante array di array (float**).
-* 
-* 	In entrambi i casi il candidato dovr� inoltre scegliere se memorizzare le
-* 	matrici per righe (row-major order) o per colonne (column major-order).
-*
-* 	L'assunzione corrente � che le matrici siano in row-major order.
-* 
-*/
 
 void* get_block(int size, int elements) { 
 	return _mm_malloc(elements*size,16); 
@@ -56,25 +43,7 @@ void dealloc_matrix(void* mat) {
 	free_block(mat);
 }
 
-/*
-* 
-* 	load_data
-* 	=========
-* 
-*	Legge da file una matrice di N righe
-* 	e M colonne e la memorizza in un array lineare in row-major order
-* 
-* 	Codifica del file:
-* 	primi 4 byte: numero di righe (N) --> numero intero
-* 	successivi 4 byte: numero di colonne (M) --> numero intero
-* 	successivi N*M*4 byte: matrix data in row-major order --> numeri floating-point a precisione singola
-* 
-*****************************************************************************
-*	Se lo si ritiene opportuno, � possibile cambiare la codifica in memoria
-* 	della matrice. 
-*****************************************************************************
-* 
-*/
+
 MATRIX load_data(char* filename, int *n, int *k) {
 	FILE* fp;
 	int rows, cols, status, i;
@@ -99,42 +68,6 @@ MATRIX load_data(char* filename, int *n, int *k) {
 	return data;
 }
 
-MATRIX load_data_int(char* filename, int *n, int *k) {
-    FILE* fp;
-    int rows, cols, status, i;
-   
-    fp = fopen(filename, "rb");
-   
-    if (fp == NULL){
-        printf("'%s': bad data file name!\n", filename);
-        exit(0);
-    }
-   
-    status = fread(&cols, sizeof(int), 1, fp);
-    status = fread(&rows, sizeof(int), 1, fp);
-   
-    MATRIX data = alloc_matrix(rows,cols);
-    status = fread(data, sizeof(int), rows*cols, fp);
-    fclose(fp);
-   
-    *n = rows;
-    *k = cols;
-   
-    return data;
-}
-
-/*
-* 	save_data
-* 	=========
-* 
-*	Salva su file un array lineare in row-major order
-*	come matrice di N righe e M colonne
-* 
-* 	Codifica del file:
-* 	primi 4 byte: numero di righe (N) --> numero intero a 32 bit
-* 	successivi 4 byte: numero di colonne (M) --> numero intero a 32 bit
-* 	successivi N*M*4 byte: matrix data in row-major order --> numeri interi o floating-point a precisione singola
-*/
 void save_data(char* filename, void* X, int n, int k) {
 	FILE* fp;
 	int i;
@@ -156,17 +89,6 @@ void save_data(char* filename, void* X, int n, int k) {
 	fclose(fp);
 }
 
-/*
-* 	save_out
-* 	=========
-* 
-*	Salva su file un array lineare composto da k+1 elementi.
-* 
-* 	Codifica del file:
-* 	primi 4 byte: contenenti l'intero 1 		--> numero intero a 32 bit
-* 	successivi 4 byte: numero di elementi (k+1) --> numero intero a 32 bit
-* 	successivi byte: elementi del vettore 		--> 1 numero floating-point a precisione singola e k interi
-*/
 void save_out(char* filename, type sc, int* X, int k) {
 	FILE* fp;
 	int i;
@@ -183,6 +105,11 @@ void save_out(char* filename, type sc, int* X, int k) {
 	fclose(fp);
 }
 
+
+// PROCEDURE ASSEMBLY
+extern void pre_calculate_means_asm(params* input, float* means);
+//extern type pcc_asm(params* input, int feature_x, int feature_y, type mean_feature_x, type mean_feature_y);
+
 // Funzione che trasforma la matrice in column-major order
 void transform_to_column_major(params* input) {
     MATRIX ds_column = alloc_matrix(input->N, input->d);
@@ -195,13 +122,7 @@ void transform_to_column_major(params* input) {
     input->ds = ds_column;
 }
 
-// PROCEDURE ASSEMBLY
-
-//extern void prova(params* input);
-extern void pre_calculate_means_asm(params* input, float* means);
-//extern float pcc_asm(params* input, int feature_x, int feature_y, type mean_feature_x, type mean_feature_y);
-
-// Funzione che calcola la media totale per ogni feature
+/* Funzione che calcola la media totale per ogni feature
 VECTOR pre_calculate_means(params* input) {
     VECTOR means = alloc_matrix(input->d, 1);
 
@@ -215,6 +136,7 @@ VECTOR pre_calculate_means(params* input) {
     }
     return means;
 }
+*/
 
 // Funzione che calcola il Point Biserial Correlation Coefficient per una feature
 type pbc(params* input, int feature, type mean) {
@@ -335,31 +257,29 @@ void cfs(params* input){
 	type final_score = 0.0;
 
 	// Vettore che contiene la media totale di ogni feature
-	//VECTOR means = pre_calculate_means(input);
-	VECTOR means=alloc_matrix(input->d,1);
+	VECTOR means = alloc_matrix(input->d,1);
 	pre_calculate_means_asm(input, means);
-	for(int i=0;i<input->d;i++){
-		printf("%f\n",means[i]);
-	}
+
 	// Vettore che contiene il pbc di ogni feature
 	VECTOR pbc_values = pre_calculate_pbc(input, means);
 	
 	while(S_size < input->k) {
 		type max_merit_score = -1;
 		int max_merit_feature = -1;
+
 		// Calcola il merito per ogni feature non presente ancora in S,
 		// trova la feature con il punteggio massimo di merito e la aggiunge al vettore S
-		for(int i = 0; i < input->d; i++) {
+		for(int feauture = 0; feauture < input->d; feauture++) {
 			// Salta la feature se è già in S
-			if (is_feature_in_S[i]) continue;
+			if (is_feature_in_S[feauture]) continue;
 
 			// Calcola il merito per S U {i}
-			type merit = merit_score(input, S_size, i, means, pbc_values);
+			type merit = merit_score(input, S_size, feauture, means, pbc_values);
 
 			// Aggiorna la feature con il punteggio massimo
 			if(merit > max_merit_score) {
 				max_merit_score = merit;
-				max_merit_feature = i;
+				max_merit_feature = feauture;
 			}
 		}
 
@@ -500,7 +420,7 @@ int main(int argc, char** argv) {
 	//
 
 	if(!input->silent){
-		printf("DatasetAAA file name: '%s'\n", dsfilename);
+		printf("Dataset file name: '%s'\n", dsfilename);
 		printf("Labels file name: '%s'\n", labelsfilename);
 		printf("Dataset row number: %d\n", input->N);
 		printf("Dataset column number: %d\n", input->d);
@@ -548,9 +468,6 @@ int main(int argc, char** argv) {
 	if(!input->silent)
 		printf("\nDone.\n");
 
-	// COMMENTARE QUESTA RIGA!
-	//prova(input);
-	//
 
 	dealloc_matrix(input->ds);
 	dealloc_matrix(input->labels);
