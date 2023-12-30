@@ -199,6 +199,7 @@ void transform_to_column_major(params* input) {
 
 //extern void prova(params* input);
 extern void pre_calculate_means_asm(params* input, float* means);
+//extern float pcc_asm(params* input, int feature_x, int feature_y, type mean_feature_x, type mean_feature_y);
 
 // Funzione che calcola la media totale per ogni feature
 VECTOR pre_calculate_means(params* input) {
