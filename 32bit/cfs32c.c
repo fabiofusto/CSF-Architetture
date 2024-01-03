@@ -108,7 +108,7 @@ void save_out(char* filename, type sc, int* X, int k) {
 
 // PROCEDURE ASSEMBLY
 extern void pre_calculate_means_asm(params* input, float* means);
-//extern type pcc_asm(params* input, int feature_x, int feature_y, type mean_feature_x, type mean_feature_y);
+extern type pcc_asm(params* input, int feature_x, int feature_y, type mean_feature_x, type mean_feature_y);
 
 // Funzione che trasforma la matrice in column-major order
 void transform_to_column_major(params* input) {
@@ -122,7 +122,7 @@ void transform_to_column_major(params* input) {
     input->ds = ds_column;
 }
 
-/* Funzione che calcola la media totale per ogni feature
+//Funzione che calcola la media totale per ogni feature
 VECTOR pre_calculate_means(params* input) {
     VECTOR means = alloc_matrix(input->d, 1);
 
@@ -131,12 +131,13 @@ VECTOR pre_calculate_means(params* input) {
 
         for(int i = 0; i < input->N; i++) 
             sum += input->ds[feature * input->N + i];
+            //printf("%f\n",sum);
            
         means[feature] = sum / input->N; 
     }
     return means;
 }
-*/
+
 
 // Funzione che calcola il Point Biserial Correlation Coefficient per una feature
 type pbc(params* input, int feature, type mean) {
@@ -259,6 +260,8 @@ void cfs(params* input){
 	// Vettore che contiene la media totale di ogni feature
 	VECTOR means = alloc_matrix(input->d,1);
 	pre_calculate_means_asm(input, means);
+	
+	//VECTOR means= pre_calculate_means(input);
 
 	// Vettore che contiene il pbc di ogni feature
 	VECTOR pbc_values = pre_calculate_pbc(input, means);
