@@ -1,0 +1,7 @@
+#!/bin/bash
+if [[ ! -f sseutils32.nasm ]]; then cp ./32bit//sseutils32.nasm .; fi;
+nasm -f elf32 ./32bit/sseutils32.nasm;
+for f in $(ls ./32bit/*32omp.nasm); do
+	nasm -f elf32 $f;
+done;
+gcc -m32 -msse -O0 -no-pie -fopenmp ./32bit/sseutils32.o ./32bit/*32omp.o ./32bit/cfs32_omp.c -o ./32bit/cfs32omp -lm
