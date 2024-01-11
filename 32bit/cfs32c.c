@@ -107,8 +107,8 @@ void save_out(char* filename, type sc, int* X, int k) {
 
 
 // PROCEDURE ASSEMBLY
-extern void pre_calculate_means_asm(params* input, float* means);
-extern type pcc_asm(params* input, int feature_x, int feature_y, type mean_feature_x, type mean_feature_y);
+extern void pre_calculate_means_asm(params* input, type* means);
+extern void pcc_asm(params* input, int feature_x, int feature_y, type mean_feature_x, type mean_feature_y, type* p);
 
 // Funzione che trasforma la matrice in column-major order
 void transform_to_column_major(params* input) {
@@ -212,12 +212,16 @@ type pcc(params* input, int feature_x, int feature_y, type mean_feature_x, type 
     }
 
 	// Calcolo il valore finale del pcc
-    return (type) numerator / (sqrt(denominator_x) * sqrt(denominator_y));
+    printf("%f\n",(type) numerator / (sqrt(denominator_x) * sqrt(denominator_y)));
+	return (type) numerator / (sqrt(denominator_x) * sqrt(denominator_y));
+
 }
 
 // Funzione che calcola il merito di un insieme di features
 type merit_score(params* input, int S_size, int feature, VECTOR means, VECTOR pbc_values) {
 	type pcc_sum = 0.0, pbc_sum = 0.0;
+	type* p=(type*)malloc(sizeof(type));
+	
 	
 	// Se l'insieme S è vuoto, il merito è uguale al pbc della feature da analizzare
 	if(S_size == 0) 
@@ -225,11 +229,16 @@ type merit_score(params* input, int S_size, int feature, VECTOR means, VECTOR pb
 
 	// Calcola il pbc e il pcc dell'insieme S corrente + la feature da analizzare
 	for(int i = 0; i < S_size; i++) {
+		
 		pbc_sum += fabs(pbc_values[input->out[i]]);
-		pcc_sum += fabs(pcc(input, feature, input->out[i], means[feature], means[input->out[i]]));
+		pcc_asm(input, feature, input->out[i], means[feature], means[input->out[i]],p);
+		//printf("%f\n",*p);
+		pcc_sum += fabs(*p);
 
-    	for(int j = i + 1; j < S_size; j++) 
-        	pcc_sum += fabs(pcc(input, input->out[i], input->out[j], means[input->out[i]], means[input->out[j]]));
+    	for(int j = i + 1; j < S_size; j++)
+		    pcc_asm(input, input->out[i], input->out[j], means[input->out[i]], means[input->out[j]],p);
+        	pcc_sum += fabs(*p);
+     	
 	}
 
 	// Aggiunge il pbc della feature da analizzare
@@ -240,8 +249,13 @@ type merit_score(params* input, int S_size, int feature, VECTOR means, VECTOR pb
 	// Calcola il pcc medio per tutte le coppie di feature
 	type mean_pcc = pcc_sum / ((S_size + 1) * S_size / 2);
 
+    free(p);
+
 	// Calcola e restituisce il merito dell'insieme S corrente + la feature da analizzare
 	return (type) ((S_size + 1) * mean_pbc) / sqrt((S_size + 1) + (S_size + 1) * S_size * mean_pcc);
+
+    
+    
 }
 
 // Come accedere ad un elemento del dataset:	input->ds[i][j] = j * input->N + i
@@ -259,7 +273,7 @@ void cfs(params* input){
 
 	// Vettore che contiene la media totale di ogni feature
 	VECTOR means = alloc_matrix(input->d,1);
-	pre_calculate_means_asm(input, means);
+    pre_calculate_means_asm(input, means);
 	
 	//VECTOR means= pre_calculate_means(input);
 
