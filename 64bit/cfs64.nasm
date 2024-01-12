@@ -95,7 +95,7 @@ pre_calculate_means_asm:
 
 		
 		for_loop1:
-			cmp rsi,5;colonne
+			cmp rsi,[colonne];colonne
 			jge fine
 			vxorps ymm1,ymm1
 			vxorps ymm2,ymm2
