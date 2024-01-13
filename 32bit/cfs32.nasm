@@ -100,10 +100,7 @@ pcc_asm:
 		mov ebx,[eax] ; dataset 
 		mov ecx,[eax+20] ; numero di righe N
 		mov [righe],ecx
-		mov edx,[ebp+feature_x]; indice feature x
-		mov [i],edx 
-		mov edi,[ebp+feature_y] ; indice feature y
-		mov [j],edi
+		
 		movss xmm0,[ebp+mean_x] ; media feature x 
 		movss xmm1,[ebp+mean_y] ; media feature y
 
@@ -119,14 +116,23 @@ pcc_asm:
 		xorps xmm6,xmm6 ; denominator_y
 		xorps xmm7,xmm7 ; copia del registro xmm2 per mul
 
-	    imul edx,ecx ; feature_x *N
+		xor edx,edx
+		xor edi,edi
+		mov eax,[righe]
+		mov edi,4
+		div edi
+		sub ecx,edx
+       
+	    
 
-		imul edi,ecx ; feature_y *N
+		mov edx,[ebp+feature_x]; indice feature x
+	    imul edx,[righe] ; feature_x *N
+        mov edi,[ebp+feature_y] ; indice feature y
+		imul edi,[righe] ; feature_y *N
 		
 		pcc_ciclo:	 
 		    cmp esi, ecx  
 			jge pcc_residuo
-
 			movaps xmm2,[ebx+edx*4]
 			movaps xmm3,[ebx+edi*4] 
 			subps xmm2,xmm0 ; diff_x
@@ -151,9 +157,11 @@ pcc_asm:
 		  
 			cmp esi,[righe]
 			jge pcc_somma_par
+
+	 		movss xmm0,[ebp+mean_x] ; media feature x 
+			movss xmm1,[ebp+mean_y] 
 			
 		    movss xmm2,[ebx+edx*4]
-			
 		    movss xmm3,[ebx+edi*4]
 
 			subss xmm2,xmm0 ; diff_x
@@ -172,7 +180,6 @@ pcc_asm:
             inc edi
 			inc edx
 			inc esi
-
       
 			jmp pcc_residuo
      
@@ -185,15 +192,17 @@ pcc_asm:
 			haddps xmm6,xmm6
 			jmp pcc_fine
         pcc_fine:
+		    
 			sqrtss xmm5,xmm5
 			sqrtss xmm6,xmm6
 			mulss xmm5,xmm6
+			
 			divss xmm4,xmm5
 			xor eax,eax
 			mov eax,[ebp+output]
-			;movss [eax],xmm4
-	        ;movss [prova1],xmm4
-		 	;printss prova1
+			movss [eax],xmm4
+	        movss [prova1],xmm4
+		 	printss prova1
 			
 		; ------------------------------------------------------------
 		; Sequenza di uscita dalla funzione
