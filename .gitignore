@@ -1,2 +1,4 @@
 # file generati dalla compilazione ed esecuzione
 *.ds2
+
+/test

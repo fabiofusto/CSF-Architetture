@@ -106,7 +106,7 @@ void save_out(char* filename, type sc, int* X, int k) {
 }
 
 // PROCEDURE ASSEMBLY
-extern void pre_calculate_means_asm(params* input, double* means);
+//extern void prova(params* input);
 
 // Funzione che trasforma la matrice in column-major order
 void transform_to_column_major(params* input) {
@@ -253,11 +253,8 @@ void cfs(params* input){
 	// Variabile che contiene lo score finale
 	type final_score = 0.0;
 
-    VECTOR means = alloc_matrix(input->d,1);
-    pre_calculate_means_asm(input, means);
-
 	// Vettore che contiene la media totale di ogni feature
-	//VECTOR means = pre_calculate_means(input);
+	VECTOR means = pre_calculate_means(input);
 
 	// Vettore che contiene il pbc di ogni feature
 	VECTOR pbc_values = pre_calculate_pbc(input, means);
@@ -320,7 +317,7 @@ int main(int argc, char** argv) {
 	input->silent = 0;
 	input->display = 0;
 
-	printf("%Ilu\n", sizeof(int));
+	printf("%i\n", sizeof(int));
 
 	//
 	// Visualizza la sintassi del passaggio dei parametri da riga comandi
