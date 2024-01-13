@@ -2,7 +2,7 @@
 if [[ ! -e sseutils64.o ]]; then nasm -f elf64 ./64bit/sseutils64.nasm; fi;
 nasm -f elf64 ./64bit/cfs64.nasm
 # Fabio: non mi funziona il flag -mavx
-gcc -m64 -msse -mavx -O0 -no-pie ./64bit/sseutils64.o ./64bit/cfs64.o ./64bit/cfs64c.c -o ./64bit/cfs64c -lm
+gcc -m64 -msse -O0 -no-pie ./64bit/sseutils64.o ./64bit/cfs64.o ./64bit/cfs64c.c -o ./64bit/cfs64c -lm
 pars="";
 for arg; do pars=$pars" "$arg; done;
 ./64bit/cfs64c $pars

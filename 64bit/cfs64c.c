@@ -105,8 +105,10 @@ void save_out(char* filename, type sc, int* X, int k) {
 	fclose(fp);
 }
 
+
 // PROCEDURE ASSEMBLY
-//extern void prova(params* input);
+// extern void pre_calculate_means_asm(params* input, type* means);
+// extern void pcc_asm(params* input, int feature_x, int feature_y, type mean_feature_x, type mean_feature_y, type* p);
 
 // Funzione che trasforma la matrice in column-major order
 void transform_to_column_major(params* input) {
@@ -120,7 +122,7 @@ void transform_to_column_major(params* input) {
     input->ds = ds_column;
 }
 
-// Funzione che calcola la media totale per ogni feature
+// Funzione che precalcola la media totale per ogni feature
 VECTOR pre_calculate_means(params* input) {
     VECTOR means = alloc_matrix(input->d, 1);
 
@@ -130,19 +132,20 @@ VECTOR pre_calculate_means(params* input) {
         for(int i = 0; i < input->N; i++) 
             sum += input->ds[feature * input->N + i];
            
-        means[feature] = sum / input->N; 
+        means[feature] = sum / (type) input->N; 
     }
     return means;
 }
+
 
 // Funzione che calcola il Point Biserial Correlation Coefficient per una feature
 type pbc(params* input, int feature, type mean) {
 	type sum_class_0 = 0.0, sum_class_1 = 0.0;
 	type mean_class_0 = 0.0, mean_class_1 = 0.0;
+	type sum_diff_quad = 0.0;
     int n0 = 0, n1 = 0;
 
 	for(int i = 0; i < input->N; i++) {
-		// Valore attuale nella colonna corrispondente alla feature
 		type value = input->ds[feature * input->N + i];
 
 		// Controllo la classe di appartenenza e incremento la somma e la numerosità
@@ -153,39 +156,39 @@ type pbc(params* input, int feature, type mean) {
 			sum_class_1 += value;
 			n1++;
 		}
+
+		// Calcolo la sommatoria del quadrato delle differenze tra valore e media
+		type diff = value - mean;
+		sum_diff_quad += diff * diff;		
 	}
 
-	// Calcolo le due medie di classe e la media totale
+	// Calcolo le due medie di classe
 	if(n0 > 0 && n1 > 0) {
-		mean_class_0 = (type) sum_class_0 / n0;
-		mean_class_1 = (type) sum_class_1 / n1;
+		mean_class_0 =  sum_class_0 / (type) n0;
+		mean_class_1 =  sum_class_1 / (type) n1;
 	}
 
 	// Calcolo la deviazione standard
-	type sum_diff_quad = 0.0;
-	for(int i = 0; i < input->N; i++) {
-		type diff = input->ds[feature * input->N + i] - mean;
-		sum_diff_quad += diff * diff;
-	}
-	type standard_deviation = sqrt(sum_diff_quad / (input->N - 1));
+	type standard_deviation = sqrt(sum_diff_quad / (type) (input->N - 1));
 
 	// Calcolo la prima parte del prodotto
-	type first_part = (type) (mean_class_0 - mean_class_1) / standard_deviation;
+	type first_part = (mean_class_0 - mean_class_1) / standard_deviation;
 
 	// Calcolo la seconda parte del prodotto che andrà sotto radice
-	type sqrt_value = (type) (n0 * n1) / (input->N * input->N);
+	type N_double = (type) input->N;
+	type sqrt_value = (type) ((n0 * n1) / (N_double * N_double));
 	
 	// Calcolo il valore finale del pbc
-	return first_part * sqrt(sqrt_value);
+	return fabs(first_part * sqrt(sqrt_value));
 }
 
+// Funzione che precalcola il valore del pbc per ogni feature
 VECTOR pre_calculate_pbc(params* input, VECTOR means) {
 	VECTOR pbc_values = alloc_matrix(input->d, 1);
 	
-	for(int feature = 0; feature < input->d; feature++) {
+	for(int feature = 0; feature < input->d; feature++) 
 		pbc_values[feature] = pbc(input, feature, means[feature]);
-	}
-
+	
 	return pbc_values;
 }
 
@@ -208,28 +211,68 @@ type pcc(params* input, int feature_x, int feature_y, type mean_feature_x, type 
     }
 
 	// Calcolo il valore finale del pcc
-    return (type) numerator / (sqrt(denominator_x) * sqrt(denominator_y));
+	return fabs((type) numerator / (sqrt(denominator_x) * sqrt(denominator_y)));
+}
+
+/* 
+	Funzione che precalcola i valori del pcc per ogni coppia di feature.
+   	Restituisce un vettore di dimensione pari al numero di coppie di feature,
+   	che si calcola tramite l'applicazione della formula del coefficiente binomiale.
+*/
+VECTOR pre_calculate_pcc(params* input, VECTOR means) {
+    VECTOR pcc_values = alloc_matrix((input->d * (input->d - 1) / 2), 1);
+
+	int index = 0;
+
+    // Calcola il pcc per ogni coppia di feature
+    for(int i = 0; i < input->d; i++) {
+        for(int j = i + 1; j < input->d; j++) {
+            // Calcola il pcc per la coppia di feature (i, j)
+		   	type pcc_value = pcc(input, i, j, means[i], means[j]);
+
+            // Memorizza il pcc nell'array
+            pcc_values[index++] = pcc_value;
+        }
+    }
+
+    return pcc_values;
+}
+
+/* 
+	Funzione che calcola l'indice corretto per accedere all'array dei pcc.
+   	L'indice si calcola partendo sempre dalla definizione del coefficiente binomiale.
+*/
+int set_correct_index(int feature_x, int feature_y, int size) {
+	return (feature_x < feature_y) ? 
+		((size * (size-1)) / 2) - (((size - feature_x) * (size - feature_x - 1)) / 2) + (feature_y - feature_x - 1) :
+		((size * (size-1)) / 2) - (((size - feature_y) * (size - feature_y - 1)) / 2) + (feature_x - feature_y - 1);
 }
 
 // Funzione che calcola il merito di un insieme di features
-type merit_score(params* input, int S_size, int feature, VECTOR means, VECTOR pbc_values) {
+type merit_score(params* input, int S_size, int feature, VECTOR means, VECTOR pbc_values, VECTOR pcc_values) {
 	type pcc_sum = 0.0, pbc_sum = 0.0;
-	
-	// Se l'insieme S è vuoto, il merito è uguale al pbc della feature da analizzare
-	if(S_size == 0) 
-		return fabs(pbc_values[feature]);
+	int index = -1;
 
+	// Se l'insieme S è vuoto, il merito è uguale al pbc della feature da analizzare
+	if(S_size == 0) return pbc_values[feature];
+	
 	// Calcola il pbc e il pcc dell'insieme S corrente + la feature da analizzare
 	for(int i = 0; i < S_size; i++) {
-		pbc_sum += fabs(pbc_values[input->out[i]]);
-		pcc_sum += fabs(pcc(input, feature, input->out[i], means[feature], means[input->out[i]]));
+		pbc_sum += pbc_values[input->out[i]];
 
-    	for(int j = i + 1; j < S_size; j++) 
-        	pcc_sum += fabs(pcc(input, input->out[i], input->out[j], means[input->out[i]], means[input->out[j]]));
+		// Calcola la somma dei pcc dell'insieme S corrente + la feature da analizzare
+		index = set_correct_index(input->out[i], feature, input->d);
+		pcc_sum += pcc_values[index];
+
+		// Calcola la somma dei pcc dell'insieme S corrente
+		for(int j = i + 1; j < S_size; j++) {
+			index = set_correct_index(input->out[i], input->out[j], input->d);
+        	pcc_sum += pcc_values[index];
+		}
 	}
 
 	// Aggiunge il pbc della feature da analizzare
-	pbc_sum += fabs(pbc_values[feature]);
+	pbc_sum += pbc_values[feature];
 	
 	// Calcola il pbc medio per tutte le feature
 	type mean_pbc = pbc_sum / (S_size + 1);
@@ -237,40 +280,43 @@ type merit_score(params* input, int S_size, int feature, VECTOR means, VECTOR pb
 	type mean_pcc = pcc_sum / ((S_size + 1) * S_size / 2);
 
 	// Calcola e restituisce il merito dell'insieme S corrente + la feature da analizzare
-	return (type) ((S_size + 1) * mean_pbc) / sqrt((S_size + 1) + (S_size + 1) * S_size * mean_pcc);
+	return (((type) S_size + 1) * mean_pbc) / sqrt(((type) S_size + 1) + ((type) S_size + 1) * ((type) S_size) * mean_pcc);
 }
 
 // Come accedere ad un elemento del dataset:	input->ds[i][j] = j * input->N + i
 // VALORI ATTESI k=5 -> score: 0.053390 features: [45,25,7,33,47]
 
 void cfs(params* input){
-	// Contatore che tiene traccia della dimensione attuale di S
 	int S_size = 0;
 
 	// Vettore che tiene traccia della presenza di ogni feature in S
-	int* is_feature_in_S = calloc(input->d, sizeof(int));
+	int* is_feature_in_S = (int*) calloc(input->d, sizeof(int));
 
-	// Variabile che contiene lo score finale
 	type final_score = 0.0;
 
 	// Vettore che contiene la media totale di ogni feature
-	VECTOR means = pre_calculate_means(input);
-
+	VECTOR means = alloc_matrix(input->d, 1);
+	
 	// Vettore che contiene il pbc di ogni feature
 	VECTOR pbc_values = pre_calculate_pbc(input, means);
+
+	// Vettore che contiene il pcc di ogni coppia di feature
+	VECTOR pcc_values = pre_calculate_pcc(input, means);
 	
 	while(S_size < input->k) {
 		type max_merit_score = -1;
 		int max_merit_feature = -1;
 
-		// Calcola il merito per ogni feature non presente ancora in S,
-		// trova la feature con il punteggio massimo di merito e la aggiunge al vettore S
+		/* 
+			Calcola il merito per ogni feature non presente ancora in S,
+			trova la feature con il merito massimo e la aggiunge al'insieme S
+		*/
 		for(int feauture = 0; feauture < input->d; feauture++) {
 			// Salta la feature se è già in S
-			if (is_feature_in_S[feauture]) continue;
+			if(is_feature_in_S[feauture]) continue;
 
 			// Calcola il merito per S U {i}
-			type merit = merit_score(input, S_size, feauture, means, pbc_values);
+			type merit = merit_score(input, S_size, feauture, means, pbc_values, pcc_values);
 
 			// Aggiorna la feature con il punteggio massimo
 			if(merit > max_merit_score) {
@@ -290,9 +336,10 @@ void cfs(params* input){
 	// Salva lo score dell'insieme finale S
 	input->sc = final_score;
 
+	free(is_feature_in_S);
 	dealloc_matrix(means);
 	dealloc_matrix(pbc_values);
-	free(is_feature_in_S);
+	dealloc_matrix(pcc_values);
 }
 
 int main(int argc, char** argv) {
@@ -316,8 +363,6 @@ int main(int argc, char** argv) {
 
 	input->silent = 0;
 	input->display = 0;
-
-	printf("%i\n", sizeof(int));
 
 	//
 	// Visualizza la sintassi del passaggio dei parametri da riga comandi
@@ -393,9 +438,10 @@ int main(int argc, char** argv) {
 
 
 	input->ds = load_data(dsfilename, &input->N, &input->d);
-	
+
 	// Trasforma la matrice in column-major order
     transform_to_column_major(input);
+	
 
 	int nl, dl;
 	input->labels = load_data(labelsfilename, &nl, &dl);
@@ -412,6 +458,7 @@ int main(int argc, char** argv) {
 
 	input->out = alloc_int_matrix(input->k, 1);
 
+
 	//
 	// Visualizza il valore dei parametri
 	//
@@ -423,6 +470,7 @@ int main(int argc, char** argv) {
 		printf("Dataset column number: %d\n", input->d);
 		printf("Number of features to extract: %d\n", input->k);
 	}
+
 
 	//
 	// Correlation Features Selection
@@ -441,14 +489,15 @@ int main(int argc, char** argv) {
 	//
 	// Salva il risultato
 	//
-	sprintf(fname, "out64_%d_%d_%d.ds2", input->N, input->d, input->k);
+	sprintf(fname, "test/out32_%d_%d_%d.ds2", input->N, input->d, input->k);
 	save_out(fname, input->sc, input->out, input->k);
 	if(input->display){
 		if(input->out == NULL)
 			printf("out: NULL\n");
 		else{
 			int i,j;
-			printf("sc: %lf, out: [", input->sc);
+			printf("sc: %f, out: [", input->sc);
+			// Fixed to not print ',' for the last element
 			for(i=0; i<input->k; i++){
 				if(i==input->k-1)
 					printf("%i", input->out[i]);
@@ -462,10 +511,11 @@ int main(int argc, char** argv) {
 	if(!input->silent)
 		printf("\nDone.\n");
 
+
 	dealloc_matrix(input->ds);
 	dealloc_matrix(input->labels);
 	dealloc_matrix(input->out);
 	free(input);
-	
+
 	return 0;
 }
