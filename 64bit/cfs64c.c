@@ -105,10 +105,8 @@ void save_out(char* filename, type sc, int* X, int k) {
 	fclose(fp);
 }
 
-
 // PROCEDURE ASSEMBLY
-// extern void pre_calculate_means_asm(params* input, type* means);
-// extern void pcc_asm(params* input, int feature_x, int feature_y, type mean_feature_x, type mean_feature_y, type* p);
+//extern void prova(params* input);
 
 // Funzione che trasforma la matrice in column-major order
 void transform_to_column_major(params* input) {
@@ -136,7 +134,6 @@ VECTOR pre_calculate_means(params* input) {
     }
     return means;
 }
-
 
 // Funzione che calcola il Point Biserial Correlation Coefficient per una feature
 type pbc(params* input, int feature, type mean) {
@@ -176,7 +173,7 @@ type pbc(params* input, int feature, type mean) {
 
 	// Calcolo la seconda parte del prodotto che andrà sotto radice
 	type N_double = (type) input->N;
-	type sqrt_value = (type) ((n0 * n1) / (N_double * N_double));
+	type sqrt_value = (((type) (n0 * n1)) / (N_double * N_double));
 	
 	// Calcolo il valore finale del pbc
 	return fabs(first_part * sqrt(sqrt_value));
@@ -211,7 +208,7 @@ type pcc(params* input, int feature_x, int feature_y, type mean_feature_x, type 
     }
 
 	// Calcolo il valore finale del pcc
-	return fabs((type) numerator / (sqrt(denominator_x) * sqrt(denominator_y)));
+	return fabs(numerator / (sqrt(denominator_x) * sqrt(denominator_y)));
 }
 
 /* 
@@ -232,6 +229,7 @@ VECTOR pre_calculate_pcc(params* input, VECTOR means) {
 
             // Memorizza il pcc nell'array
             pcc_values[index++] = pcc_value;
+			
         }
     }
 
@@ -283,9 +281,6 @@ type merit_score(params* input, int S_size, int feature, VECTOR means, VECTOR pb
 	return (((type) S_size + 1) * mean_pbc) / sqrt(((type) S_size + 1) + ((type) S_size + 1) * ((type) S_size) * mean_pcc);
 }
 
-// Come accedere ad un elemento del dataset:	input->ds[i][j] = j * input->N + i
-// VALORI ATTESI k=5 -> score: 0.053390 features: [45,25,7,33,47]
-
 void cfs(params* input){
 	int S_size = 0;
 
@@ -295,7 +290,7 @@ void cfs(params* input){
 	type final_score = 0.0;
 
 	// Vettore che contiene la media totale di ogni feature
-	VECTOR means = alloc_matrix(input->d, 1);
+	VECTOR means = pre_calculate_means(input);
 	
 	// Vettore che contiene il pbc di ogni feature
 	VECTOR pbc_values = pre_calculate_pbc(input, means);
@@ -363,6 +358,8 @@ int main(int argc, char** argv) {
 
 	input->silent = 0;
 	input->display = 0;
+
+	printf("%i\n", sizeof(int));
 
 	//
 	// Visualizza la sintassi del passaggio dei parametri da riga comandi
@@ -441,7 +438,6 @@ int main(int argc, char** argv) {
 
 	// Trasforma la matrice in column-major order
     transform_to_column_major(input);
-	
 
 	int nl, dl;
 	input->labels = load_data(labelsfilename, &nl, &dl);
@@ -457,7 +453,6 @@ int main(int argc, char** argv) {
 	}
 
 	input->out = alloc_int_matrix(input->k, 1);
-
 
 	//
 	// Visualizza il valore dei parametri
@@ -489,14 +484,14 @@ int main(int argc, char** argv) {
 	//
 	// Salva il risultato
 	//
-	sprintf(fname, "test/out32_%d_%d_%d.ds2", input->N, input->d, input->k);
+	sprintf(fname, "test/out64_%d_%d_%d.ds2", input->N, input->d, input->k);
 	save_out(fname, input->sc, input->out, input->k);
 	if(input->display){
 		if(input->out == NULL)
 			printf("out: NULL\n");
 		else{
 			int i,j;
-			printf("sc: %f, out: [", input->sc);
+			printf("sc: %lf, out: [", input->sc);
 			// Fixed to not print ',' for the last element
 			for(i=0; i<input->k; i++){
 				if(i==input->k-1)
@@ -511,11 +506,10 @@ int main(int argc, char** argv) {
 	if(!input->silent)
 		printf("\nDone.\n");
 
-
 	dealloc_matrix(input->ds);
 	dealloc_matrix(input->labels);
 	dealloc_matrix(input->out);
 	free(input);
-
+	
 	return 0;
 }

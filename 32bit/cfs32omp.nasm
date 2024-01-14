@@ -17,6 +17,7 @@ section .bss			; Sezione contenente dati non inizializzati
 	prova1    resd       1
 	prova2    resd       1
 	indice    resd      1
+	risultato  resd     1
 
 section .text			; Sezione contenente il codice macchina
 
@@ -94,42 +95,50 @@ pcc_asm:
 		; [EAX + 24] input->d;		// numero di colonne/feature del dataset
 		; [EAX + 28] input->display;
 		; [EAX + 32] input->silent;
-   		 
+
+
 		mov ebx,[eax] ; dataset 
 		mov ecx,[eax+20] ; numero di righe N
-		mov edx,[ebp+feature_x] ; indice feature x
-		mov [i],edx 
-		mov edi,[ebp+feature_y] ; indice feature y
-		mov [j],edi
+		mov [righe],ecx
+		
 		movss xmm0,[ebp+mean_x] ; media feature x 
 		movss xmm1,[ebp+mean_y] ; media feature y
 
-		xor esi,esi ;indice scorrimento righe
+		shufps xmm0,xmm0,0
+		shufps xmm1,xmm1,0
 
+		xor esi,esi ;indice scorrimento righe
+        
 		xorps xmm2,xmm2 ; diff_x
 		xorps xmm3,xmm3 ; diff_y
 		xorps xmm4,xmm4 ; numerator
 		xorps xmm5,xmm5 ; denominator_x
 		xorps xmm6,xmm6 ; denominator_y
 		xorps xmm7,xmm7 ; copia del registro xmm2 per mul
-        imul edx,ecx ; feature_x *N
-		imul edi,ecx ; feature_y *N
+
+		xor edx,edx
+		xor edi,edi
+		mov eax,[righe]
+		mov edi,4
+		div edi
+		sub ecx,edx
+       
+	    
+
+		mov edx,[ebp+feature_x]; indice feature x
+	    imul edx,[righe] ; feature_x *N
+        mov edi,[ebp+feature_y] ; indice feature y
+		imul edi,[righe] ; feature_y *N
 		
-		pcc_ciclo:
-		 
-		    cmp esi, ecx
-			jge pcc_fine
-			add edx,4
-			;cvtsi2ss xmm7,edx
-			;movss [prova1],xmm7
-			;printss prova1
-			movups xmm2,[ebx+edx*4]
-			add edi,4
-			
-			movups xmm3,[ebx+edi*4] 
+		pcc_ciclo:	 
+		    cmp esi, ecx  
+			jge pcc_residuo
+			movaps xmm2,[ebx+edx*4]
+			movaps xmm3,[ebx+edi*4] 
 			subps xmm2,xmm0 ; diff_x
 			subps xmm3,xmm1 ; diff_y
-			movups xmm7,xmm2
+
+		    movaps xmm7,xmm2
 			mulps xmm7,xmm3 
 			addps xmm4,xmm7; numerator
  
@@ -140,25 +149,20 @@ pcc_asm:
 			addps xmm6,xmm3; denominator_y
 
 			add esi,4
+            add edx,4			
+			add edi,4 
+    
 			jmp pcc_ciclo
-
-       pcc_somma_par:
-			haddps xmm4,xmm4
-			haddps xmm4,xmm4
-			haddps xmm5,xmm5
-			haddps xmm5,xmm5
-			haddps xmm6,xmm6
-			haddps xmm6,xmm6
-			jmp pcc_residuo
-
 		pcc_residuo:
-			sub esi,ecx
-			cmp esi,0
-			jle pcc_fine
-			add edx,esi
-			movss xmm2,[ebx+edx*4]
-			add edi,esi
-			movss xmm3,[ebx+edi*4]
+		  
+			cmp esi,[righe]
+			jge pcc_somma_par
+
+	 		movss xmm0,[ebp+mean_x] ; media feature x 
+			movss xmm1,[ebp+mean_y] 
+			
+		    movss xmm2,[ebx+edx*4]
+		    movss xmm3,[ebx+edi*4]
 
 			subss xmm2,xmm0 ; diff_x
 			subss xmm3,xmm1 ; diff_y
@@ -171,19 +175,35 @@ pcc_asm:
 			addss xmm5,xmm2; denominator_x
 
 			mulss xmm3,xmm3
-			addss xmm6,xmm6; denominator_y
+			addss xmm6,xmm3; denominator_y
 
-			dec esi
+            inc edi
+			inc edx
+			inc esi
+      
 			jmp pcc_residuo
-
+     
+        pcc_somma_par:
+			haddps xmm4,xmm4
+			haddps xmm4,xmm4
+			haddps xmm5,xmm5
+			haddps xmm5,xmm5
+			haddps xmm6,xmm6
+			haddps xmm6,xmm6
+			jmp pcc_fine
         pcc_fine:
+		    
 			sqrtss xmm5,xmm5
 			sqrtss xmm6,xmm6
 			mulss xmm5,xmm6
-			divss xmm4,xmm5
-			movss [ebp+output],xmm4 
 			
-
+			divss xmm4,xmm5
+			xor eax,eax
+			mov eax,[ebp+output]
+			movss [eax],xmm4
+	        ; movss [prova1],xmm4
+		 	; printss prova1
+			
 		; ------------------------------------------------------------
 		; Sequenza di uscita dalla funzione
 		; ------------------------------------------------------------
@@ -254,9 +274,6 @@ pre_calculate_means_asm:
 		for_loop2: 
 		    cmp edi,ecx
 		    jge residuo
-			;cvtsi2ss xmm5,edi
-			;movss [prova1],xmm5
-			;printss prova1
 			xor eax,eax
             mov eax,esi
 			imul eax,[righe]
