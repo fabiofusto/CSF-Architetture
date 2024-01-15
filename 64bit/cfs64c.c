@@ -107,6 +107,7 @@ void save_out(char* filename, type sc, int* X, int k) {
 
 // PROCEDURE ASSEMBLY
 //extern void prova(params* input);
+extern void pre_calculate_means_asm(params* input, VECTOR means);
 
 // Funzione che trasforma la matrice in column-major order
 void transform_to_column_major(params* input) {
@@ -290,7 +291,8 @@ void cfs(params* input){
 	type final_score = 0.0;
 
 	// Vettore che contiene la media totale di ogni feature
-	VECTOR means = pre_calculate_means(input);
+	VECTOR means = alloc_matrix(input->d, 1);
+	pre_calculate_means_asm(input, means);
 	
 	// Vettore che contiene il pbc di ogni feature
 	VECTOR pbc_values = pre_calculate_pbc(input, means);

@@ -2,7 +2,7 @@
 if [[ ! -e sseutils64.o ]]; then nasm -f elf64 ./64bit/sseutils64.nasm; fi;
 nasm -f elf64 ./64bit/cfs64omp.nasm
 # Fabio: non mi funziona -mavx
-gcc -m64 -msse -O0 -no-pie -fopenmp ./64bit/sseutils64.o ./64bit/cfs64omp.o ./64bit/cfs64_omp.c -o ./64bit/cfs64omp -lm
+gcc -m64 -msse -mavx -O0 -no-pie -fopenmp ./64bit/sseutils64.o ./64bit/cfs64omp.o ./64bit/cfs64_omp.c -o ./64bit/cfs64omp -lm
 pars="";
 for arg; do pars=$pars" "$arg; done;
 ./64bit/cfs64omp $pars

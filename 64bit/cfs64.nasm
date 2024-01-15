@@ -141,12 +141,12 @@ pre_calculate_means_asm:
 			vaddpd ymm1,ymm2
 			vhaddpd ymm1, ymm1, ymm1						
 			vhaddpd ymm1, ymm1, ymm1
-			vmovsd [somme],xmm1
-		 	printsd somme
+			; vmovsd [somme],xmm1
+		 	; printsd somme
 			vcvtsi2sd xmm7,r9
 			vdivpd ymm1,ymm7
-		    vmovsd [medie],xmm1
-	     	printsd medie
+		    ; vmovsd [medie],xmm1
+	     	; printsd medie
 	    	lea rax,[rsi]
 		    vmovsd [rax+r10*8],xmm1
 		;	xorps xmm7,xmm7
