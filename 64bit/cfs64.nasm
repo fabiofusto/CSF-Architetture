@@ -3,14 +3,15 @@
 section .data			; Sezione contenente dati inizializzati
     colonne dq  0
 	righe   dq  0
-    costante dq 28
+    costante dq 32
 	
 
 section .bss			; Sezione contenente dati non inizializzati
    
 alignb 32
 sc		resq		1
-medie   resq        1
+alignb 32
+medie   resq        4
 somme   resq        1
 
 section .text			; Sezione contenente il codice macchina
@@ -98,6 +99,7 @@ pre_calculate_means_asm:
 		for_loop1:
 			cmp r10,[colonne];colonne
 			jge fine
+			vxorps ymm0,ymm0
 			vxorps ymm1,ymm1
 			vxorps ymm2,ymm2
 			vxorps ymm3,ymm3
@@ -113,13 +115,14 @@ pre_calculate_means_asm:
             mov rax,r10
 			imul rax,[righe]
 			add rax,r9
-            vaddpd ymm1,[rbx+rax*8]
-			vaddpd ymm2,[rbx+rax*8+32]
-			vaddpd ymm3,[rbx+rax*8+64]
-			vaddpd ymm4,[rbx+rax*8+96]
-			vaddpd ymm5,[rbx+rax*8+128]
-			vaddpd ymm6,[rbx+rax*8+160]
-			vaddpd ymm7,[rbx+rax*8+192]
+            vaddpd ymm0,[rbx+rax*8]
+			vaddpd ymm1,[rbx+rax*8+32]
+		    vaddpd ymm2,[rbx+rax*8+64]
+			vaddpd ymm3,[rbx+rax*8+96]
+			vaddpd ymm4,[rbx+rax*8+128]
+			vaddpd ymm5,[rbx+rax*8+160]
+			vaddpd ymm6,[rbx+rax*8+192]
+			vaddpd ymm7,[rbx+rax*8+224]
 		    add r9,[costante]
 			jmp for_loop2;   
 		residuo:
@@ -129,25 +132,26 @@ pre_calculate_means_asm:
 			mov rax,r10
 			imul rax,[righe]
 			add rax,r9
-			vaddsd xmm1,[rbx+rax*8] ; vedere meglio
-			add r9,1
+			vaddpd ymm1,[rbx+rax*8] ; vedere meglio
+	   		add r9,4
 			jmp residuo
 		media:  
-	        vaddpd ymm1,ymm7
-			vaddpd ymm2,ymm6
-			vaddpd ymm3,ymm5
-			vaddpd ymm1,ymm4
-			vaddpd ymm2,ymm3
-			vaddpd ymm1,ymm2
-			vhaddpd ymm1, ymm1, ymm1						
-			vhaddpd ymm1, ymm1, ymm1
-			; vmovsd [somme],xmm1
-		 	; printsd somme
-			vcvtsi2sd xmm7,r9
+		    vaddpd ymm0,ymm7
+	        vaddpd ymm1,ymm6
+		  	vaddpd ymm2,ymm5
+		  	vaddpd ymm3,ymm4
+		  	vaddpd ymm1,ymm0
+		  	vaddpd ymm2,ymm3
+		 	vaddpd ymm1,ymm2
+			vhaddpd ymm1,ymm1,ymm1	
+			vxorps ymm0,ymm0			
+			vperm2f128 ymm0,ymm1,ymm1,0x01
+			vaddsd xmm1,xmm0
+			vcvtsi2sd xmm7,[righe]
 			vdivpd ymm1,ymm7
-		    ; vmovsd [medie],xmm1
-	     	; printsd medie
-	    	lea rax,[rsi]
+		    vmovsd [medie],xmm1
+	     	printsd medie
+	    	lea rax,[rsi] 
 		    vmovsd [rax+r10*8],xmm1
 		;	xorps xmm7,xmm7
 		;	vcvtsi2sd xmm7,xmm7,rsi

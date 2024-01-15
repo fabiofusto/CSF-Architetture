@@ -24,7 +24,7 @@ typedef struct {
 
 
 void* get_block(int size, int elements) { 
-	return _mm_malloc(elements*size,16); 
+	return _mm_malloc(elements*size,32); 
 }
 
 void free_block(void* p) { 
@@ -107,7 +107,7 @@ void save_out(char* filename, type sc, int* X, int k) {
 
 // PROCEDURE ASSEMBLY
 //extern void prova(params* input);
-extern void pre_calculate_means_asm(params* input, VECTOR means);
+extern void pre_calculate_means_asm(params* input, double* means);
 
 // Funzione che trasforma la matrice in column-major order
 void transform_to_column_major(params* input) {
@@ -132,6 +132,7 @@ VECTOR pre_calculate_means(params* input) {
             sum += input->ds[feature * input->N + i];
            
         means[feature] = sum / (type) input->N; 
+		printf("%f\n",means[feature]);
     }
     return means;
 }
@@ -290,9 +291,10 @@ void cfs(params* input){
 
 	type final_score = 0.0;
 
+    VECTOR means = alloc_matrix(input->d,1);
+    pre_calculate_means_asm(input, means);
 	// Vettore che contiene la media totale di ogni feature
-	VECTOR means = alloc_matrix(input->d, 1);
-	pre_calculate_means_asm(input, means);
+	//VECTOR means = pre_calculate_means(input);
 	
 	// Vettore che contiene il pbc di ogni feature
 	VECTOR pbc_values = pre_calculate_pbc(input, means);
@@ -360,6 +362,8 @@ int main(int argc, char** argv) {
 
 	input->silent = 0;
 	input->display = 0;
+
+
 
 	//
 	// Visualizza la sintassi del passaggio dei parametri da riga comandi
