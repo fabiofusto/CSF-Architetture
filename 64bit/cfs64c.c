@@ -359,8 +359,6 @@ int main(int argc, char** argv) {
 	input->silent = 0;
 	input->display = 0;
 
-	printf("%i\n", sizeof(int));
-
 	//
 	// Visualizza la sintassi del passaggio dei parametri da riga comandi
 	//
