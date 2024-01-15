@@ -3,7 +3,7 @@
 section .data			; Sezione contenente dati inizializzati
     colonne dq  0
 	righe   dq  0
-    costante dq 32
+    costante dq 28
 	
 
 section .bss			; Sezione contenente dati non inizializzati
@@ -88,13 +88,9 @@ pre_calculate_means_asm:
 		mov rdi,[costante]
 		div rdi
 		sub rcx,rdx
-
-        ;vcvtsi2sd xmm1,xmm1,rdx
-	    ;vmovsd [medie],xmm1
-	    ;printsd medie
-        ;rdx residuo
   
         xor r10,r10
+		xor r11,r11
 		
 		for_loop1:
 			cmp r10,[colonne];colonne
@@ -115,14 +111,13 @@ pre_calculate_means_asm:
             mov rax,r10
 			imul rax,[righe]
 			add rax,r9
-            vaddpd ymm0,[rbx+rax*8]
-			vaddpd ymm1,[rbx+rax*8+32]
-		    vaddpd ymm2,[rbx+rax*8+64]
-			vaddpd ymm3,[rbx+rax*8+96]
-			vaddpd ymm4,[rbx+rax*8+128]
-			vaddpd ymm5,[rbx+rax*8+160]
-			vaddpd ymm6,[rbx+rax*8+192]
-			vaddpd ymm7,[rbx+rax*8+224]
+			vaddpd ymm1,[rbx+rax*8]
+		    vaddpd ymm2,[rbx+rax*8+32]
+			vaddpd ymm3,[rbx+rax*8+64]
+			vaddpd ymm4,[rbx+rax*8+96]
+			vaddpd ymm5,[rbx+rax*8+128]
+			vaddpd ymm6,[rbx+rax*8+160]
+			vaddpd ymm7,[rbx+rax*8+192]
 		    add r9,[costante]
 			jmp for_loop2;   
 		residuo:
@@ -132,20 +127,20 @@ pre_calculate_means_asm:
 			mov rax,r10
 			imul rax,[righe]
 			add rax,r9
-			vaddpd ymm1,[rbx+rax*8] ; vedere meglio
-	   		add r9,4
+			vaddsd xmm0,[rbx+rax*8]  
+	   		inc r9
 			jmp residuo
 		media:  
-		    vaddpd ymm0,ymm7
 	        vaddpd ymm1,ymm6
 		  	vaddpd ymm2,ymm5
 		  	vaddpd ymm3,ymm4
-		  	vaddpd ymm1,ymm0
+		  	vaddpd ymm1,ymm7
 		  	vaddpd ymm2,ymm3
 		 	vaddpd ymm1,ymm2
 			vhaddpd ymm1,ymm1,ymm1	
-			vxorps ymm0,ymm0			
-			vperm2f128 ymm0,ymm1,ymm1,0x01
+			vxorps ymm5,ymm5			
+			vperm2f128 ymm5,ymm1,ymm1,0x01
+			vaddsd xmm1,xmm5
 			vaddsd xmm1,xmm0
 			vcvtsi2sd xmm7,[righe]
 			vdivpd ymm1,ymm7
@@ -153,9 +148,6 @@ pre_calculate_means_asm:
 	     	printsd medie
 	    	lea rax,[rsi] 
 		    vmovsd [rax+r10*8],xmm1
-		;	xorps xmm7,xmm7
-		;	vcvtsi2sd xmm7,xmm7,rsi
-		;   vmovsd [xmm0],ymm0
 			inc r10
 			jmp for_loop1
 		
