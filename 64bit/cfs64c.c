@@ -107,7 +107,9 @@ void save_out(char* filename, type sc, int* X, int k) {
 
 // PROCEDURE ASSEMBLY
 //extern void prova(params* input);
-extern void pre_calculate_means_asm(params* input, double* means);
+extern void pre_calculate_means_asm(params* input, type* means);
+extern void pcc_asm(params* input, int feature_x, int feature_y, type mean_feature_x, type mean_feature_y, type* p);
+
 
 // Funzione che trasforma la matrice in column-major order
 void transform_to_column_major(params* input) {
@@ -227,11 +229,15 @@ VECTOR pre_calculate_pcc(params* input, VECTOR means) {
     for(int i = 0; i < input->d; i++) {
         for(int j = i + 1; j < input->d; j++) {
             // Calcola il pcc per la coppia di feature (i, j)
-		   	type pcc_value = pcc(input, i, j, means[i], means[j]);
+			type* p = (type*) malloc(sizeof(type));
+			pcc_asm(input, i, j, means[i], means[j], p);
+		   	type pcc_value = *p;
 
             // Memorizza il pcc nell'array
-            pcc_values[index++] = pcc_value;
+            pcc_values[index++] = fabsf(pcc_value);
 			
+			free(p);
+            			
         }
     }
 
