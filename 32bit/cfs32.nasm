@@ -99,10 +99,10 @@ pcc_asm:
 
 		mov ebx,[eax] ; dataset 
 		mov ecx,[eax+20] ; numero di righe N
+		mov [righe],ecx
 		
 		movss xmm0,[ebp+mean_x] ; media feature x 
 		movss xmm1,[ebp+mean_y] ; media feature y
-
 
 		shufps xmm0,xmm0,0
 		shufps xmm1,xmm1,0
@@ -117,16 +117,21 @@ pcc_asm:
 		xorps xmm5,xmm5 ; denominator_x
 		xorps xmm6,xmm6 ; denominator_y
 		xorps xmm7,xmm7 ; copia del registro xmm2 per mul
-       
-		mov edx,[ebp+feature_x]; indice feature x
 
+		xor edx,edx
+		xor edi,edi
+		mov eax,[righe]
+		mov edi,4
+		div edi
+		sub ecx,edx
+
+		mov edx,[ebp+feature_x]; indice feature x
 	    imul edx,ecx; feature_x *N
 		
         mov edi,[ebp+feature_y] ; indice feature y
 		imul edi,ecx ; feature_y *N
 
-		
-		
+
 		pcc_ciclo:	 
 		    cmp esi,ecx  
 			jge pcc_somma_par
@@ -158,7 +163,7 @@ pcc_asm:
 			haddps xmm5,xmm5
 			haddps xmm5,xmm5
 			haddps xmm6,xmm6
-			haddps xmm6,xmm6
+			haddps xmm6,xmm6		
 			jmp pcc_residuo	
 		
 		pcc_residuo:
