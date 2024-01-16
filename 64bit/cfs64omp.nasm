@@ -10,7 +10,8 @@ section .bss			; Sezione contenente dati non inizializzati
    
 alignb 32
 sc		resq		1
-medie   resq        1
+alignb 32
+medie   resq        4
 somme   resq        1
 
 section .text			; Sezione contenente il codice macchina
@@ -87,17 +88,14 @@ pre_calculate_means_asm:
 		mov rdi,[costante]
 		div rdi
 		sub rcx,rdx
-
-        ;vcvtsi2sd xmm1,xmm1,rdx
-	    ;vmovsd [medie],xmm1
-	    ;printsd medie
-        ;rdx residuo
   
         xor r10,r10
+		xor r11,r11
 		
 		for_loop1:
 			cmp r10,[colonne];colonne
 			jge fine
+			vxorps ymm0,ymm0
 			vxorps ymm1,ymm1
 			vxorps ymm2,ymm2
 			vxorps ymm3,ymm3
@@ -113,8 +111,8 @@ pre_calculate_means_asm:
             mov rax,r10
 			imul rax,[righe]
 			add rax,r9
-            vaddpd ymm1,[rbx+rax*8]
-			vaddpd ymm2,[rbx+rax*8+32]
+			vaddpd ymm1,[rbx+rax*8]
+		    vaddpd ymm2,[rbx+rax*8+32]
 			vaddpd ymm3,[rbx+rax*8+64]
 			vaddpd ymm4,[rbx+rax*8+96]
 			vaddpd ymm5,[rbx+rax*8+128]
@@ -129,29 +127,27 @@ pre_calculate_means_asm:
 			mov rax,r10
 			imul rax,[righe]
 			add rax,r9
-			vaddsd xmm1,[rbx+rax*8] ; vedere meglio
-			add r9,1
+			vaddsd xmm0,[rbx+rax*8]  
+	   		inc r9
 			jmp residuo
 		media:  
-	        vaddpd ymm1,ymm7
-			vaddpd ymm2,ymm6
-			vaddpd ymm3,ymm5
-			vaddpd ymm1,ymm4
-			vaddpd ymm2,ymm3
-			vaddpd ymm1,ymm2
-			vhaddpd ymm1, ymm1, ymm1						
-			vhaddpd ymm1, ymm1, ymm1
-			; vmovsd [somme],xmm1
-		 	; printsd somme
-			vcvtsi2sd xmm7,r9
+	        vaddpd ymm1,ymm6
+		  	vaddpd ymm2,ymm5
+		  	vaddpd ymm3,ymm4
+		  	vaddpd ymm1,ymm7
+		  	vaddpd ymm2,ymm3
+		 	vaddpd ymm1,ymm2
+			vhaddpd ymm1,ymm1,ymm1	
+			vxorps ymm5,ymm5			
+			vperm2f128 ymm5,ymm1,ymm1,0x01
+			vaddsd xmm1,xmm5
+			vaddsd xmm1,xmm0
+			vcvtsi2sd xmm7,[righe]
 			vdivpd ymm1,ymm7
 		    ; vmovsd [medie],xmm1
 	     	; printsd medie
-	    	lea rax,[rsi]
+	    	lea rax,[rsi] 
 		    vmovsd [rax+r10*8],xmm1
-		;	xorps xmm7,xmm7
-		;	vcvtsi2sd xmm7,xmm7,rsi
-		;   vmovsd [xmm0],ymm0
 			inc r10
 			jmp for_loop1
 		

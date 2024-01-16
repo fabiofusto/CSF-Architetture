@@ -168,8 +168,8 @@ pcc_asm:
 			xor eax,eax
 			mov eax,[ebp+output]
 			movss [eax],xmm4
-			movss [prova1],xmm4
-		    printss prova1
+			; movss [prova1],xmm4
+		    ; printss prova1
 	       
 			
 		; ------------------------------------------------------------

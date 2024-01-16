@@ -25,7 +25,7 @@ typedef struct {
 
 
 void* get_block(int size, int elements) { 
-	return _mm_malloc(elements*size,16); 
+	return _mm_malloc(elements*size,32); 
 }
 
 void free_block(void* p) { 

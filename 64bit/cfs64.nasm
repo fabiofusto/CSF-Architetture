@@ -144,8 +144,8 @@ pre_calculate_means_asm:
 			vaddsd xmm1,xmm0
 			vcvtsi2sd xmm7,[righe]
 			vdivpd ymm1,ymm7
-		    vmovsd [medie],xmm1
-	     	printsd medie
+		    ; vmovsd [medie],xmm1
+	     	; printsd medie
 	    	lea rax,[rsi] 
 		    vmovsd [rax+r10*8],xmm1
 			inc r10
