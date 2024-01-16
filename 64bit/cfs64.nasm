@@ -91,7 +91,7 @@ pre_calculate_means_asm:
 		mov rdi,[costante]
 		div rdi
 		sub rcx,rdx
-  
+
         xor r10,r10
 		xor r11,r11
 		
@@ -189,7 +189,7 @@ pcc_asm:
 
         mov rbx,[rdi] ;dataset
 		mov r8d,[rdi+36] ;numero di righe
-	    
+	    mov [righe],r8d
 		; rsi registro indice x
         ; rdx registro indice y
 	    ; rcx puntatore al valore da ritornare
@@ -198,6 +198,8 @@ pcc_asm:
 		; vmovsd [medie],xmm1
     	; printsd medie
  		
+		mov r13,rsi
+		mov r14,rdx
 
         vbroadcastsd ymm0,xmm0 ; copia la media in tutto ymm0
         ;vmovapd [medie],ymm0
@@ -216,16 +218,23 @@ pcc_asm:
 		vxorps ymm6,ymm6 ; denominator_y
 		vxorps ymm7,ymm7 ; copia del registro xmm2 per mul
       
-	 	imul rsi,r8
-		imul rdx,r8
-        
+		
+	    xor rdx,rdx
+		xor rdi,rdi
+		mov rax,[righe]	
+		mov rdi,4
+		div rdi
+		sub r8,rdx
+
+	 	imul r13,[righe]
+		imul r14,[righe]
 	
         pcc_ciclo: 
 		    cmp r9,r8	
 			jge pcc_somma_par		
 
-			vmovapd ymm2,[rbx+rsi*8]
-			vmovapd ymm3,[rbx+rdx*8]
+			vmovapd ymm2,[rbx+r13*8]
+			vmovapd ymm3,[rbx+r14*8]
 
 			vsubpd ymm2,ymm0
 			vsubpd ymm3,ymm1
@@ -241,53 +250,55 @@ pcc_asm:
 			vaddpd ymm6,ymm3 ;denominator_y
 
 			add r9,4
-			add rsi,4
-			add rdx,4
+			add r13,4
+			add r14,4
  
             jmp pcc_ciclo
 
 		pcc_somma_par:
-		  ;  vmovapd [medie],ymm5
-		  ;  printpd medie,2
+		  ; vmovapd [medie],ymm5
+		  ; printpd medie,2
 		    vhaddpd ymm4,ymm4
-            vxorps ymm1,ymm1			
-			vperm2f128 ymm1,ymm4,ymm4,0x01
-			vaddsd xmm4,xmm1
+            vxorps ymm7,ymm7			
+			vperm2f128 ymm7,ymm4,ymm4,0x01
+			vaddsd xmm4,xmm7
 			vhaddpd ymm5,ymm5
-			vxorps ymm1,ymm1			
-			vperm2f128 ymm1,ymm5,ymm5,0x01
-			vaddsd xmm5,xmm1
+			vxorps ymm7,ymm7			
+			vperm2f128 ymm7,ymm5,ymm5,0x01
+			vaddsd xmm5,xmm7
 			vhaddpd ymm6,ymm6
-			vxorps ymm1,ymm1			
-			vperm2f128 ymm1,ymm6,ymm6,0x01
-			vaddsd xmm6,xmm1
-            jmp pcc_fine
-		;pcc_residuo:
-		 ;   cmp r9,[rdi+36]
-		 ;	jmp pcc_fine
-          ;  vmovsd xmm2,[rbx+rsi*8]
-		 ;	vmovsd xmm3,[rbx+rdx*8]
+			vxorps ymm7,ymm7			
+			vperm2f128 ymm7,ymm6,ymm6,0x01
+			vaddsd xmm6,xmm7
+            jmp pcc_residuo
+		pcc_residuo:
+		    cmp r9,r8
+		 	jge pcc_fine
+		 
+		    vxorps xmm2,xmm2
+			vxorps xmm3,xmm3
+		   
+            vmovsd xmm2,[rbx+r13*8]
+		 	vmovsd xmm3,[rbx+r14*8]
 
-		;	vsubsd xmm2,xmm0
-		;	vsubsd xmm3,xmm1
+			vsubsd xmm2,xmm0
+			vsubsd xmm3,xmm1
 
-         ;   vmovsd xmm7,xmm2
-		;	vmulsd xmm7,xmm3
-		;	vaddsd xmm4,xmm7
+            vmovsd xmm7,xmm2
+			vmulsd xmm7,xmm3
+			vaddsd xmm4,xmm7
 
-		;	vmulsd xmm2,xmm2
-		;	vaddsd xmm5,xmm2 ;denominator_x
+			vmulsd xmm2,xmm2
+			vaddsd xmm5,xmm2 ;denominator_x
 
-		;	vmulsd xmm3,xmm3
-		;	vaddsd xmm6,xmm3 ;denominator_y
-
-		;	add r9,1
-		;	add rsi,1
-		;	add rdx,1
-        ;   jmp pcc_residuo
+			vmulsd xmm3,xmm3
+			vaddsd xmm6,xmm3 ;denominator_y
+            
+			add r9,1
+			add r13,1
+			add r14,1
+            jmp pcc_residuo
 		pcc_fine:
-		 ;   vmovapd [medie],ymm4
-		 ;	printpd medie,2 
 		    vsqrtsd xmm5,xmm5
 			vsqrtsd xmm6,xmm6
 			vmulsd xmm5,xmm6
@@ -295,8 +306,8 @@ pcc_asm:
 			xor rax,rax
 			mov rax,[rcx]
 			vmovsd [rcx],xmm4
-		    movsd [prova],xmm4
-		    printsd prova
+		 ;   movsd [prova],xmm4
+		  ;  printsd prova
 
 
 		; ------------------------------------------------------------
