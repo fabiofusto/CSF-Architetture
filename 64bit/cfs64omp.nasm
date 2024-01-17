@@ -4,6 +4,8 @@ section .data			; Sezione contenente dati inizializzati
     colonne dq  0
 	righe   dq  0
     costante dq 28
+	indice_x dq 0
+	indice_y dq 0
 	
 
 section .bss			; Sezione contenente dati non inizializzati
@@ -13,6 +15,7 @@ sc		resq		1
 alignb 32
 medie   resq        4
 somme   resq        1
+prova   resq        1
 
 section .text			; Sezione contenente il codice macchina
 
@@ -88,7 +91,7 @@ pre_calculate_means_asm:
 		mov rdi,[costante]
 		div rdi
 		sub rcx,rdx
-  
+
         xor r10,r10
 		xor r11,r11
 		
@@ -144,14 +147,171 @@ pre_calculate_means_asm:
 			vaddsd xmm1,xmm0
 			vcvtsi2sd xmm7,[righe]
 			vdivpd ymm1,ymm7
-		    ; vmovsd [medie],xmm1
-	     	; printsd medie
+		;   vmovsd [medie],xmm1
+	    ; 	printsd medie
 	    	lea rax,[rsi] 
 		    vmovsd [rax+r10*8],xmm1
 			inc r10
 			jmp for_loop1
 		
 		fine:
+  
+		popaq				; ripristina i registri generali
+		mov		rsp, rbp	; ripristina lo Stack Pointer
+		pop		rbp		; ripristina il Base Pointer
+		ret				; torna alla funzione C chiamante
+
+
+
+
+global pcc_asm
+
+
+pcc_asm:
+
+		; ------------------------------------------------------------
+		; Sequenza di ingresso nella funzione
+			; ------------------------------------------------------------
+		push		rbp				; salva il Base Pointer
+		mov		rbp, rsp			; il Base Pointer punta al Record di Attivazione corrente
+		pushaq						; salva i registri generali
+
+		; RDI=indirizzo della struttura contenente i parametri
+        ; [RDI] input->ds; 			// dataset
+		; [RDI + 8] input->labels; 	// etichette
+		; [RDI + 16] input->out;	// vettore contenente risultato dim=(k+1)
+		; [RDI + 24] input->sc;		// score dell'insieme di features risultato
+		; [RDI + 32] input->k; 		// numero di features da estrarre
+		; [RDI + 36] input->N;		// numero di righe del dataset
+		; [RDI + 40] input->d;		// numero di colonne/feature del dataset
+		; [RDI + 44] input->display;
+		; [RDI + 48] input->silent;
+
+        mov rbx,[rdi] ;dataset
+		mov r8d,[rdi+36] ;numero di righe
+	    mov [righe],r8d
+		; rsi registro indice x
+        ; rdx registro indice y
+	    ; rcx puntatore al valore da ritornare
+        
+        ; vcvtsi2sd xmm1,xmm1,rsi
+		; vmovsd [medie],xmm1
+    	; printsd medie
+ 		
+		mov r13,rsi
+		mov r14,rdx
+
+        vbroadcastsd ymm0,xmm0 ; copia la media in tutto ymm0
+        ;vmovapd [medie],ymm0
+		;printpd medie,2
+ 
+
+		vbroadcastsd ymm1,xmm1 ; copia la media in tutto ymm1
+        ;vmovapd [medie],ymm1
+		;printpd medie,2
+
+		xor r9,r9 ;indice scorrimento righe
+		vxorps ymm2,ymm2 ; diff_x
+		vxorps ymm3,ymm3 ; diff_y
+		vxorps ymm4,ymm4 ; numerator
+		vxorps ymm5,ymm5 ; denominator_x
+		vxorps ymm6,ymm6 ; denominator_y
+		vxorps ymm7,ymm7 ; copia del registro xmm2 per mul
+      
+		
+	    xor rdx,rdx
+		xor rdi,rdi
+		mov rax,[righe]	
+		mov rdi,4
+		div rdi
+		sub r8,rdx
+
+	 	imul r13,[righe]
+		imul r14,[righe]
+	
+        pcc_ciclo: 
+		    cmp r9,r8	
+			jge pcc_somma_par		
+
+			vmovapd ymm2,[rbx+r13*8]
+			vmovapd ymm3,[rbx+r14*8]
+
+			vsubpd ymm2,ymm0
+			vsubpd ymm3,ymm1
+
+            vmovupd ymm7,ymm2
+			vmulpd ymm7,ymm3
+			vaddpd ymm4,ymm7
+
+			vmulpd ymm2,ymm2
+			vaddpd ymm5,ymm2 ;denominator_x
+
+			vmulpd ymm3,ymm3
+			vaddpd ymm6,ymm3 ;denominator_y
+
+			add r9,4
+			add r13,4
+			add r14,4
+ 
+            jmp pcc_ciclo
+
+		pcc_somma_par:
+		  ; vmovapd [medie],ymm5
+		  ; printpd medie,2
+		    vhaddpd ymm4,ymm4
+            vxorps ymm7,ymm7			
+			vperm2f128 ymm7,ymm4,ymm4,0x01
+			vaddsd xmm4,xmm7
+			vhaddpd ymm5,ymm5
+			vxorps ymm7,ymm7			
+			vperm2f128 ymm7,ymm5,ymm5,0x01
+			vaddsd xmm5,xmm7
+			vhaddpd ymm6,ymm6
+			vxorps ymm7,ymm7			
+			vperm2f128 ymm7,ymm6,ymm6,0x01
+			vaddsd xmm6,xmm7
+            jmp pcc_residuo
+		pcc_residuo:
+		    cmp r9,r8
+		 	jge pcc_fine
+		 
+		    vxorps xmm2,xmm2
+			vxorps xmm3,xmm3
+		   
+            vmovsd xmm2,[rbx+r13*8]
+		 	vmovsd xmm3,[rbx+r14*8]
+
+			vsubsd xmm2,xmm0
+			vsubsd xmm3,xmm1
+
+            vmovsd xmm7,xmm2
+			vmulsd xmm7,xmm3
+			vaddsd xmm4,xmm7
+
+			vmulsd xmm2,xmm2
+			vaddsd xmm5,xmm2 ;denominator_x
+
+			vmulsd xmm3,xmm3
+			vaddsd xmm6,xmm3 ;denominator_y
+            
+			add r9,1
+			add r13,1
+			add r14,1
+            jmp pcc_residuo
+		pcc_fine:
+		    vsqrtsd xmm5,xmm5
+			vsqrtsd xmm6,xmm6
+			vmulsd xmm5,xmm6
+			vdivsd xmm4,xmm5
+			xor rax,rax
+			mov rax,[rcx]
+			vmovsd [rcx],xmm4
+		 ;   movsd [prova],xmm4
+		  ;  printsd prova
+
+
+		; ------------------------------------------------------------
+		; Sequenza di uscita dalla funzione
   
 		popaq				; ripristina i registri generali
 		mov		rsp, rbp	; ripristina lo Stack Pointer

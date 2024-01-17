@@ -123,7 +123,7 @@ void transform_to_column_major(params* input) {
     input->ds = ds_column;
 }
 
-// Funzione che precalcola la media totale per ogni feature
+/* Funzione che precalcola la media totale per ogni feature
 VECTOR pre_calculate_means(params* input) {
     VECTOR means = alloc_matrix(input->d, 1);
 
@@ -134,10 +134,10 @@ VECTOR pre_calculate_means(params* input) {
             sum += input->ds[feature * input->N + i];
            
         means[feature] = sum / (type) input->N; 
-		printf("%f\n",means[feature]);
     }
     return means;
 }
+*/
 
 // Funzione che calcola il Point Biserial Correlation Coefficient per una feature
 type pbc(params* input, int feature, type mean) {
@@ -193,7 +193,7 @@ VECTOR pre_calculate_pbc(params* input, VECTOR means) {
 	return pbc_values;
 }
 
-// Funzione che calcola il Pearson's Correlation Coefficient per due feature
+/* Funzione che calcola il Pearson's Correlation Coefficient per due feature
 type pcc(params* input, int feature_x, int feature_y, type mean_feature_x, type mean_feature_y) {
 	type diff_x = 0.0, diff_y = 0.0;
     type numerator = 0.0, denominator_x = 0.0, denominator_y = 0.0;
@@ -214,6 +214,7 @@ type pcc(params* input, int feature_x, int feature_y, type mean_feature_x, type 
 	// Calcolo il valore finale del pcc
 	return fabs(numerator / (sqrt(denominator_x) * sqrt(denominator_y)));
 }
+*/
 
 /* 
 	Funzione che precalcola i valori del pcc per ogni coppia di feature.
@@ -234,10 +235,9 @@ VECTOR pre_calculate_pcc(params* input, VECTOR means) {
 		   	type pcc_value = *p;
 
             // Memorizza il pcc nell'array
-            pcc_values[index++] = fabsf(pcc_value);
+            pcc_values[index++] = fabs(pcc_value);
 			
-			free(p);
-            			
+			free(p);		
         }
     }
 
@@ -297,10 +297,9 @@ void cfs(params* input){
 
 	type final_score = 0.0;
 
+	// Vettore che contiene la media totale di ogni feature
     VECTOR means = alloc_matrix(input->d,1);
     pre_calculate_means_asm(input, means);
-	// Vettore che contiene la media totale di ogni feature
-	//VECTOR means = pre_calculate_means(input);
 	
 	// Vettore che contiene il pbc di ogni feature
 	VECTOR pbc_values = pre_calculate_pbc(input, means);

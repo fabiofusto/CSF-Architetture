@@ -99,10 +99,10 @@ pcc_asm:
 
 		mov ebx,[eax] ; dataset 
 		mov ecx,[eax+20] ; numero di righe N
+		mov [righe],ecx
 		
 		movss xmm0,[ebp+mean_x] ; media feature x 
 		movss xmm1,[ebp+mean_y] ; media feature y
-
 
 		shufps xmm0,xmm0,0
 		shufps xmm1,xmm1,0
@@ -117,15 +117,24 @@ pcc_asm:
 		xorps xmm5,xmm5 ; denominator_x
 		xorps xmm6,xmm6 ; denominator_y
 		xorps xmm7,xmm7 ; copia del registro xmm2 per mul
-       
+
+		xor edx,edx
+		xor edi,edi
+		mov eax,[righe]
+		mov edi,4
+		div edi
+		sub ecx,edx
+
 		mov edx,[ebp+feature_x]; indice feature x
 	    imul edx,ecx; feature_x *N
+		
         mov edi,[ebp+feature_y] ; indice feature y
 		imul edi,ecx ; feature_y *N
-		
+
+
 		pcc_ciclo:	 
 		    cmp esi,ecx  
-			jge pcc_fine
+			jge pcc_somma_par
 			movaps xmm2,[ebx+edx*4]
 			movaps xmm3,[ebx+edi*4] 
     
@@ -147,20 +156,44 @@ pcc_asm:
 			add edi,4 
     
 			jmp pcc_ciclo
+
+		pcc_somma_par:
+			haddps xmm4,xmm4
+			haddps xmm4,xmm4
+			haddps xmm5,xmm5
+			haddps xmm5,xmm5
+			haddps xmm6,xmm6
+			haddps xmm6,xmm6		
+			jmp pcc_residuo	
 		
+		pcc_residuo:
+			cmp esi,[righe]
+			jge pcc_fine
+			
+		    movss xmm2,[ebx+edx*4]
+			
+		    movss xmm3,[ebx+edi*4]
+
+			subss xmm2,xmm0 ; diff_x
+			subss xmm3,xmm1 ; diff_y
+
+			movss xmm7,xmm2 
+			mulss xmm7,xmm3
+			addss xmm4,xmm7 ; numerator
+
+			mulss xmm2,xmm2 
+			addss xmm5,xmm2; denominator_x
+
+			mulss xmm3,xmm3
+			addss xmm6,xmm3; denominator_y
+
+            inc edi
+			inc edx
+			inc esi
+
+			jmp pcc_residuo
+     
         pcc_fine:
-		 	;movups [prova1],xmm4
-		    ;printps prova1,1 
-            
-			haddps xmm4,xmm4
-			;movups [prova1],xmm4
-		    ;printps prova1,1 
-            
-			haddps xmm4,xmm4
-			haddps xmm5,xmm5
-			haddps xmm5,xmm5
-			haddps xmm6,xmm6
-			haddps xmm6,xmm6
 			sqrtss xmm5,xmm5
 			sqrtss xmm6,xmm6
 			mulss xmm5,xmm6
@@ -168,7 +201,7 @@ pcc_asm:
 			xor eax,eax
 			mov eax,[ebp+output]
 			movss [eax],xmm4
-			; movss [prova1],xmm4
+		    ; movss [prova1],xmm4
 		    ; printss prova1
 	       
 			
