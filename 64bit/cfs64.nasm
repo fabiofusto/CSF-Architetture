@@ -149,8 +149,8 @@ pre_calculate_means_asm:
 			vdivpd ymm1,ymm7
 		;   vmovsd [medie],xmm1
 	    ; 	printsd medie
-	    	lea rax,[rsi] 
-		    vmovsd [rax+r10*8],xmm1
+	    	; lea rax,[rsi] 
+		    vmovsd [rsi+r10*8],xmm1
 			inc r10
 			jmp for_loop1
 		

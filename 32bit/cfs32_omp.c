@@ -153,16 +153,18 @@ VECTOR pre_calculate_means(params* input) {
 
 // Funzione che calcola il Point Biserial Correlation Coefficient per una feature
 type pbc(params* input, int feature, type mean) {
-	type sum_class_0 = 0.0, sum_class_1 = 0.0;
-	type mean_class_0 = 0.0, mean_class_1 = 0.0;
-	type sum_diff_quad = 0.0;
-    int n0 = 0, n1 = 0;
+	type sum_class_0 = 0.0f, sum_class_1 = 0.0f;
+	type mean_class_0 = 0.0f, mean_class_1 = 0.0f;
+	type sum_diff_quad = 0.0f;
+    type n0 = 0, n1 = 0;
+	
+	type N_float = ((type) input->N);
 
 	for(int i = 0; i < input->N; i++) {
 		type value = input->ds[feature * input->N + i];
 
 		// Controllo la classe di appartenenza e incremento la somma e la numerosità
-		if(input->labels[i] == 0.0) {
+		if(input->labels[i] == 0.0f) {
 			sum_class_0 += value;
 			n0++;
 		} else {
@@ -176,20 +178,19 @@ type pbc(params* input, int feature, type mean) {
 	}
 
 	// Calcolo le due medie di classe
-	if(n0 > 0 && n1 > 0) {
-		mean_class_0 =  sum_class_0 / (type) n0;
-		mean_class_1 =  sum_class_1 / (type) n1;
+	if(n0 > 0.0f && n1 > 0.0f) {
+		mean_class_0 = sum_class_0 / n0;
+		mean_class_1 = sum_class_1 / n1;
 	}
 
 	// Calcolo la deviazione standard
-	type standard_deviation = sqrtf(sum_diff_quad / (type) (input->N - 1));
+	type standard_deviation = sqrtf(sum_diff_quad / (N_float - 1.0f));
 
 	// Calcolo la prima parte del prodotto
 	type first_part = (mean_class_0 - mean_class_1) / standard_deviation;
 
 	// Calcolo la seconda parte del prodotto che andrà sotto radice
-	type N_float = (type) input->N;
-	type sqrt_value = (type) ((n0 * n1) / (N_float * N_float));
+	type sqrt_value = ((n0 * n1) / (N_float * N_float));
 	
 	// Calcolo il valore finale del pbc
 	return fabsf(first_part * sqrtf(sqrt_value));
@@ -197,7 +198,7 @@ type pbc(params* input, int feature, type mean) {
 
 // Funzione che precalcola il valore del pbc per ogni feature
 VECTOR pre_calculate_pbc(params* input, VECTOR means) {
-	VECTOR pbc_values = alloc_matrix(input->d, 1);
+	VECTOR pbc_values = alloc_matrix(1, input->d);
 	
 	int num_threads = get_num_threads(input->d);
 
@@ -237,7 +238,8 @@ type pcc(params* input, int feature_x, int feature_y, type mean_feature_x, type 
    	che si calcola tramite l'applicazione della formula del coefficiente binomiale.
 */
 VECTOR pre_calculate_pcc(params* input, VECTOR means) {
-    VECTOR pcc_values = alloc_matrix((input->d * (input->d - 1) / 2), 1);
+    VECTOR pcc_values = alloc_matrix(1, (input->d * (input->d - 1) / 2));
+	type* p = (type*) malloc(sizeof(type));
 
 	int index = 0;
 
@@ -248,8 +250,8 @@ VECTOR pre_calculate_pcc(params* input, VECTOR means) {
     for(int i = 0; i < input->d; i++) {
         for(int j = i + 1; j < input->d; j++) {
             // Calcola il pcc per la coppia di feature (i, j)
-            type* p = (type*) malloc(sizeof(type));
-            pcc_asm(input, i, j, means[i], means[j], p);
+            *p = 0.0f;
+			pcc_asm(input, i, j, means[i], means[j], p);
             type pcc_value = *p;
 
             index = i * (input->d - 1) - (i * (i + 1) / 2) + j - 1;
@@ -257,9 +259,10 @@ VECTOR pre_calculate_pcc(params* input, VECTOR means) {
             // Memorizza il pcc nell'array
             pcc_values[index] = fabsf(pcc_value);
 
-            free(p);
         }
     }
+	
+	free(p);
 
     return pcc_values;
 }
@@ -276,7 +279,7 @@ int set_correct_index(int feature_x, int feature_y, int size) {
 
 // Funzione che calcola il merito di un insieme di features
 type merit_score(params* input, int S_size, int feature, VECTOR means, VECTOR pbc_values, VECTOR pcc_values) {
-	type pcc_sum = 0.0, pbc_sum = 0.0;
+	type pcc_sum = 0.0f, pbc_sum = 0.0f;
 	int index = -1;
 
 	// Se l'insieme S è vuoto, il merito è uguale al pbc della feature da analizzare
@@ -321,7 +324,7 @@ void cfs(params* input){
 	type final_score = 0.0;
 
 	// Vettore che contiene la media totale di ogni feature
-	VECTOR means = alloc_matrix(input->d, 1);
+	VECTOR means = alloc_matrix(1, input->d);
     pre_calculate_means_asm(input, means);
 	
 	// Vettore che contiene il pbc di ogni feature
@@ -331,7 +334,7 @@ void cfs(params* input){
 	VECTOR pcc_values = pre_calculate_pcc(input, means);
 	
 	while(S_size < input->k) {
-		type max_merit_score = -1;
+		type max_merit_score = -1.0f;
 		int max_merit_feature = -1;
 
 		int num_threads = get_num_threads(input->d);
@@ -342,7 +345,7 @@ void cfs(params* input){
 		*/
 		#pragma omp parallel num_threads(num_threads)
 		{
-			type local_max_merit_score = -1;
+			type local_max_merit_score = -1.0f;
 			int local_max_merit_feature = -1;
 
 			#pragma omp for
