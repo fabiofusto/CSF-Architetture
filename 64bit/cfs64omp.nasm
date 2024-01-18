@@ -12,7 +12,6 @@ section .bss			; Sezione contenente dati non inizializzati
    
 alignb 32
 sc		resq		1
-alignb 32
 medie   resq        4
 somme   resq        1
 prova   resq        1
