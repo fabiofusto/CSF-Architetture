@@ -272,7 +272,7 @@ pcc_asm:
 			vaddsd xmm6,xmm7
             jmp pcc_residuo
 		pcc_residuo:
-		    cmp r9,r8
+		    cmp r9,[righe]
 		 	jge pcc_fine
 		 
 		    vxorps xmm2,xmm2
