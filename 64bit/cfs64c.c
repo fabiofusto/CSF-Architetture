@@ -113,7 +113,7 @@ extern void pcc_asm(params* input, int feature_x, int feature_y, type mean_featu
 
 // Funzione che trasforma la matrice in column-major order
 void transform_to_column_major(params* input) {
-    MATRIX ds_column = alloc_matrix(input->N, input->d);
+    MATRIX ds_column = alloc_matrix(input->d, input->N);
 
     for(int i = 0; i < input->N; i++)
         for(int j = 0; j < input->d; j++) 
@@ -166,10 +166,8 @@ type pbc(params* input, int feature, type mean) {
 	}
 
 	// Calcolo le due medie di classe
-	if(n0 > 0.0 && n1 > 0.0) {
-		mean_class_0 = sum_class_0 / n0;
-		mean_class_1 = sum_class_1 / n1;
-	}
+	if(n0 > 0.0) mean_class_0 = sum_class_0 / n0;
+	if(n1 > 0.0) mean_class_1 = sum_class_1 / n1;
 
 	// Calcolo la deviazione standard
 	type standard_deviation = sqrt(sum_diff_quad / (N_double - 1.0));

@@ -181,10 +181,8 @@ type pbc(params* input, int feature, type mean) {
 	}
 
 	// Calcolo le due medie di classe
-	if(n0 > 0.0 && n1 > 0.0) {
-		mean_class_0 = sum_class_0 / n0;
-		mean_class_1 = sum_class_1 / n1;
-	}
+	if(n0 > 0.0) mean_class_0 = sum_class_0 / n0;
+	if(n1 > 0.0) mean_class_1 = sum_class_1 / n1;
 
 	// Calcolo la deviazione standard
 	type standard_deviation = sqrt(sum_diff_quad / (N_double - 1.0));

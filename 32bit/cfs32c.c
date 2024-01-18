@@ -112,7 +112,7 @@ extern void pcc_asm(params* input, int feature_x, int feature_y, type mean_featu
 
 // Funzione che trasforma la matrice in column-major order
 void transform_to_column_major(params* input) {
-    MATRIX ds_column = alloc_matrix(input->N, input->d);
+    MATRIX ds_column = alloc_matrix(input->d, input->N);
 
     for(int i = 0; i < input->N; i++)
         for(int j = 0; j < input->d; j++) 
@@ -140,47 +140,64 @@ VECTOR pre_calculate_means(params* input) {
 
 // Funzione che calcola il Point Biserial Correlation Coefficient per una feature
 type pbc(params* input, int feature, type mean) {
-	type sum_class_0 = 0.0f, sum_class_1 = 0.0f;
-	type mean_class_0 = 0.0f, mean_class_1 = 0.0f;
-	type sum_diff_quad = 0.0f;
-    type n0 = 0, n1 = 0;
+    type sum_class_0 = 0.0f, sum_class_1 = 0.0f;
+    type mean_class_0 = 0.0f, mean_class_1 = 0.0f;
+    type n0 = 0.0f, n1 = 0.0f;
+    
+	/*
+		Variabili utili per la compensazione per la somma di Kahan.
+		La somma di Kahan, o somma compensata, è un metodo per sommare una sequenza di numeri in virgola mobile con un errore di arrotondamento ridotto.
 	
+		Il principio di base è di tenere traccia della somma cumulativa degli errori di arrotondamento in una variabile separata (c0 per la classe 0, c1 per la classe 1).
+		Questo errore cumulativo viene quindi sottratto dal prossimo numero da aggiungere, compensando così l'errore di arrotondamento.
+		In questo modo, l'errore totale della somma finale è molto più vicino a zero rispetto a quello che sarebbe con una somma normale.
+	*/ 
+    type sum_diff_quad = 0.0f, c_diff = 0.0f;
+    type c0 = 0.0f, c1 = 0.0f;
+    
 	type N_float = ((type) input->N);
 
-	for(int i = 0; i < input->N; i++) {
-		type value = input->ds[feature * input->N + i];
+    for(int i = 0; i < input->N; i++) {
+        type value = input->ds[feature * input->N + i];
 
-		// Controllo la classe di appartenenza e incremento la somma e la numerosità
-		if(input->labels[i] == 0.0f) {
-			sum_class_0 += value;
-			n0++;
-		} else {
-			sum_class_1 += value;
-			n1++;
-		}
+        // Controllo la classe di appartenenza e incremento la somma e la numerosità
+        if(input->labels[i] == 0.0f) {
+            type y = value - c0;
+            type t = sum_class_0 + y;
+            c0 = (t - sum_class_0) - y;
+            sum_class_0 = t;
+            n0++;
+        } else {
+            type y = value - c1;
+            type t = sum_class_1 + y;
+            c1 = (t - sum_class_1) - y;
+            sum_class_1 = t;
+            n1++;
+        }
 
-		// Calcolo la sommatoria del quadrato delle differenze tra valore e media
-		type diff = value - mean;
-		sum_diff_quad += diff * diff;		
-	}
+        // Calcolo la sommatoria del quadrato delle differenze tra valore e media
+        type diff = value - mean;
+        type y = (diff * diff) - c_diff;
+        type t = sum_diff_quad + y;
+        c_diff = (t - sum_diff_quad) - y;
+        sum_diff_quad = t;		
+    }
 
-	// Calcolo le due medie di classe
-	if(n0 > 0.0f && n1 > 0.0f) {
-		mean_class_0 = sum_class_0 / n0;
-		mean_class_1 = sum_class_1 / n1;
-	}
+    // Calcolo le due medie di classe
+    if(n0 > 0.0f) mean_class_0 = sum_class_0 / n0;
+    if(n1 > 0.0f) mean_class_1 = sum_class_1 / n1;
 
-	// Calcolo la deviazione standard
-	type standard_deviation = sqrtf(sum_diff_quad / (N_float - 1.0f));
+    // Calcolo la deviazione standard
+    type standard_deviation = sqrtf(sum_diff_quad / (N_float - 1.0f));
 
-	// Calcolo la prima parte del prodotto
-	type first_part = (mean_class_0 - mean_class_1) / standard_deviation;
+    // Calcolo la prima parte del prodotto
+    type first_part = (mean_class_0 - mean_class_1) / standard_deviation;
 
-	// Calcolo la seconda parte del prodotto che andrà sotto radice
-	type sqrt_value = ((n0 * n1) / (N_float * N_float));
-	
-	// Calcolo il valore finale del pbc
-	return fabsf(first_part * sqrtf(sqrt_value));
+    // Calcolo la seconda parte del prodotto che andrà sotto radice
+    type sqrt_value = ((n0 * n1) / (N_float * N_float));
+    
+    // Calcolo il valore finale del pbc
+    return fabsf(first_part * sqrtf(sqrt_value));
 }
 
 // Funzione che precalcola il valore del pbc per ogni feature
