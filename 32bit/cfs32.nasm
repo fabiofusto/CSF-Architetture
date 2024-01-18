@@ -126,10 +126,10 @@ pcc_asm:
 		sub ecx,edx
 
 		mov edx,[ebp+feature_x]; indice feature x
-	    imul edx,ecx; feature_x *N
+	    imul edx,[righe]; feature_x *N
 		
         mov edi,[ebp+feature_y] ; indice feature y
-		imul edi,ecx ; feature_y *N
+		imul edi,[righe] ; feature_y *N
 
 
 		pcc_ciclo:	 
@@ -201,8 +201,8 @@ pcc_asm:
 			xor eax,eax
 			mov eax,[ebp+output]
 			movss [eax],xmm4
-		    ; movss [prova1],xmm4
-		    ; printss prova1
+		   ; movss [prova1],xmm4
+		   ; printss prova1
 	       
 			
 		; ------------------------------------------------------------
