@@ -242,27 +242,29 @@ VECTOR pre_calculate_pcc(params* input, VECTOR means) {
     VECTOR pcc_values = alloc_matrix(1, (input->d * (input->d - 1) / 2));
 
 	int index = 0;
+	type pcc_value = -1.0;
 
     int num_threads = get_num_threads(input->d);
 
     // Calcola il pcc per ogni coppia di feature
-    #pragma omp parallel for num_threads(num_threads)
+    #pragma omp parallel for num_threads(num_threads) private(index, pcc_value)
     for(int i = 0; i < input->d; i++) {
         for(int j = i + 1; j < input->d; j++) {
             // Calcola il pcc per la coppia di feature (i, j)
 			type* p = (type*) malloc(sizeof(type));
             *p = 0.0;
 			pcc_asm(input, i, j, means[i], means[j], p);
-            type pcc_value = *p;
+            pcc_value = *p;
 
             index = i * (input->d - 1) - (i * (i + 1) / 2) + j - 1;
 
             // Memorizza il pcc nell'array
             pcc_values[index] = fabs(pcc_value);
-			free(p);
 			
+			free(p);	
         }
     }
+	
 
     return pcc_values;
 }
@@ -330,11 +332,11 @@ void cfs(params* input){
 	// Vettore che contiene il pcc di ogni coppia di feature
 	VECTOR pcc_values = pre_calculate_pcc(input, means);
 	
+	int num_threads = get_num_threads(input->d);
+	
 	while(S_size < input->k) {
 		type max_merit_score = -1.0;
 		int max_merit_feature = -1;
-
-		int num_threads = get_num_threads(input->d);
 
 		/* 
 			Calcola il merito per ogni feature non presente ancora in S,
