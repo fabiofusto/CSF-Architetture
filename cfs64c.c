@@ -332,6 +332,8 @@ void cfs(params* input){
 
 		// Aggiorna lo score
 		final_score = max_merit_score;
+
+		// printf("Feature scelta: %d, score: %f\n", max_merit_feature, max_merit_score);
 	
 		// Aggiungi la feature con il punteggio massimo ad S
 		input->out[S_size++] = max_merit_feature;
@@ -494,7 +496,7 @@ int main(int argc, char** argv) {
 	//
 	// Salva il risultato
 	//
-	sprintf(fname, "test/out64_%d_%d_%d.ds2", input->N, input->d, input->k);
+	sprintf(fname, "out64_%d_%d_%d.ds2", input->N, input->d, input->k);
 	save_out(fname, input->sc, input->out, input->k);
 	if(input->display){
 		if(input->out == NULL)

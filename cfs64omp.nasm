@@ -1,4 +1,4 @@
-%include "./64bit/sseutils64.nasm"
+%include "./sseutils64.nasm"
 
 section .data			; Sezione contenente dati inizializzati
     colonne dq  0
@@ -6,7 +6,9 @@ section .data			; Sezione contenente dati inizializzati
     costante dq 28
 	indice_x dq 0
 	indice_y dq 0
-	
+	media_x dq 0
+	media_y dq 0
+
 
 section .bss			; Sezione contenente dati non inizializzati
    
@@ -199,11 +201,14 @@ pcc_asm:
 		mov r13,rsi  ; indice x
 		mov r14,rdx  ; indice y
 
-        vbroadcastsd ymm0,xmm0 ; copia la media in tutto ymm0
+		movsd [media_x],xmm0
+		movsd [media_y],xmm1
+
+        vbroadcastsd ymm0,[media_x] ; copia la media in tutto ymm0
         ;vmovapd [medie],ymm0
 		;printpd medie,2
 
-		vbroadcastsd ymm1,xmm1 ; copia la media in tutto ymm1
+		vbroadcastsd ymm1,[media_y] ; copia la media in tutto ymm1
         ;vmovapd [medie],ymm1
 		;printpd medie,2
 

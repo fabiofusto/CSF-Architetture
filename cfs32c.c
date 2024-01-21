@@ -235,12 +235,15 @@ type pcc(params* input, int feature_x, int feature_y, type mean_feature_x, type 
 
 /* 
 	Funzione che precalcola i valori del pcc per ogni coppia di feature.
+	
    	Restituisce un vettore di dimensione pari al numero di coppie di feature,
    	che si calcola tramite l'applicazione della formula del coefficiente binomiale.
 */
 VECTOR pre_calculate_pcc(params* input, VECTOR means) {
     VECTOR pcc_values = alloc_matrix(1, (input->d * (input->d - 1) / 2));
     type* p = (type*) malloc(sizeof(type));
+
+	printf("Numero di coppie di feature: %d\n", input->d * (input->d - 1) / 2);
 
 	int index = 0;
 
@@ -252,20 +255,30 @@ VECTOR pre_calculate_pcc(params* input, VECTOR means) {
 			pcc_asm(input, i, j, means[i], means[j], p);
 		   	type pcc_value = *p;
 
+
             // Memorizza il pcc nell'array
-            pcc_values[index++] = fabsf(pcc_value);
-			
+            pcc_values[index] = fabsf(pcc_value);
+			printf("Coppia di feature: %d, %d - Indice corrente: %d - Valore: %f\n", i, j, index, pcc_values[index]);
+			index++;
         }
     }
 
 	free(p);
+
+	printf("Indice finale: %d\n", index);
 
     return pcc_values;
 }
 
 /* 
 	Funzione che calcola l'indice corretto per accedere all'array dei pcc.
-   	L'indice si calcola partendo sempre dalla definizione del coefficiente binomiale.
+
+   	L'array dei pcc è un array unidimensionale che memorizza i pcc per ogni coppia di feature in un modo specifico.
+    Le coppie di feature sono ordinate in modo tale che la prima feature sia sempre minore della seconda.
+    L'indice per una specifica coppia di feature (feature_x, feature_y) viene calcolato utilizzando la formula del coefficiente binomiale.
+    La formula del coefficiente binomiale viene utilizzata per convertire l'indice di una matrice triangolare superiore in un indice di array unidimensionale.
+    Se feature_x è minore di feature_y, l'indice viene calcolato come il totale di coppie di feature meno il numero di coppie rimanenti nella riga corrente più la posizione corrente nella riga.
+    Se feature_x è maggiore di feature_y, l'indice viene calcolato in modo simile, ma con feature_x e feature_y scambiati.
 */
 int set_correct_index(int feature_x, int feature_y, int size) {
 	return (feature_x < feature_y) ? 
@@ -287,6 +300,7 @@ type merit_score(params* input, int S_size, int feature, VECTOR means, VECTOR pb
 
 		// Calcola la somma dei pcc dell'insieme S corrente + la feature da analizzare
 		index = set_correct_index(input->out[i], feature, input->d);
+		// printf("Coppia (%d, %d) -> Indice corretto: %d\n",input->out[i], feature, index);
 		pcc_sum += pcc_values[index];
 
 		// Calcola la somma dei pcc dell'insieme S corrente
@@ -311,7 +325,7 @@ type merit_score(params* input, int S_size, int feature, VECTOR means, VECTOR pb
 // Come accedere ad un elemento del dataset:	input->ds[i][j] = j * input->N + i
 // VALORI ATTESI k=5 -> score: 0.053390 features: [45,25,7,33,47]
 
-void cfs(params* input){
+void cfs(params* input) {
 	int S_size = 0;
 
 	// Vettore che tiene traccia della presenza di ogni feature in S
@@ -353,11 +367,14 @@ void cfs(params* input){
 
 		// Aggiorna lo score
 		final_score = max_merit_score;
+
+		// printf("Feature scelta: %d, score: %f\n", max_merit_feature, max_merit_score);
 	
 		// Aggiungi la feature con il punteggio massimo ad S
 		input->out[S_size++] = max_merit_feature;
 		is_feature_in_S[max_merit_feature] = 1;
 	}
+
 
 	// Salva lo score dell'insieme finale S
 	input->sc = final_score;
@@ -515,7 +532,7 @@ int main(int argc, char** argv) {
 	//
 	// Salva il risultato
 	//
-	sprintf(fname, "test/out32_%d_%d_%d.ds2", input->N, input->d, input->k);
+	sprintf(fname, "out32_%d_%d_%d.ds2", input->N, input->d, input->k);
 	save_out(fname, input->sc, input->out, input->k);
 	if(input->display){
 		if(input->out == NULL)

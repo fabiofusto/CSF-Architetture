@@ -1,4 +1,4 @@
-%include "./32bit/sseutils32.nasm"
+%include "./sseutils32.nasm"
 
 section .data			; Sezione contenente dati inizializzati
     k dd 0
@@ -64,7 +64,7 @@ extern free_block
 
 global pcc_asm
 
-input		equ		8
+input_pcc		equ		8
 feature_x   equ     12
 feature_y   equ     16
 mean_x      equ     20
@@ -85,7 +85,7 @@ pcc_asm:
 		; legge i parametri dal Record di Attivazione corrente
 		; ------------------------------------------------------------
 
-		mov EAX, [EBP+input]	; indirizzo della struttura contenente i parametri
+		mov EAX, [EBP+input_pcc]	; indirizzo della struttura contenente i parametri
         ; [EAX] input->ds; 			// dataset
 		; [EAX + 4] input->labels; 	// etichette
 		; [EAX + 8] input->out;	// vettore contenente risultato dim=(k+1)
@@ -220,7 +220,7 @@ pcc_asm:
 
 global pre_calculate_means_asm
 
-input		equ		8
+input_means		equ		8
 means       equ    12
 
 pre_calculate_means_asm:
@@ -234,7 +234,7 @@ pre_calculate_means_asm:
 		push		esi
 		push		edi
 
-		mov EAX, [EBP+input]	; indirizzo della struttura contenente i parametri
+		mov EAX, [EBP+input_means]	; indirizzo della struttura contenente i parametri
         ; [EAX] input->ds; 			// dataset
 		; [EAX + 4] input->labels; 	// etichette
 		; [EAX + 8] input->out;	// vettore contenente risultato dim=(k+1)

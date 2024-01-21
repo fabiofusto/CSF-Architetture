@@ -1,4 +1,9 @@
 # file generati dalla compilazione ed esecuzione
 *.ds2
+*.ds
+*.labels
 
-/test
+!test_5000_50_32.ds
+!test_5000_50_32.labels
+!test_5000_50_64.ds
+!test_5000_50_64.labels
