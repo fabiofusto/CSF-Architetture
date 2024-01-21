@@ -243,8 +243,6 @@ VECTOR pre_calculate_pcc(params* input, VECTOR means) {
     VECTOR pcc_values = alloc_matrix(1, (input->d * (input->d - 1) / 2));
     type* p = (type*) malloc(sizeof(type));
 
-	printf("Numero di coppie di feature: %d\n", input->d * (input->d - 1) / 2);
-
 	int index = 0;
 
     // Calcola il pcc per ogni coppia di feature
@@ -257,15 +255,11 @@ VECTOR pre_calculate_pcc(params* input, VECTOR means) {
 
 
             // Memorizza il pcc nell'array
-            pcc_values[index] = fabsf(pcc_value);
-			printf("Coppia di feature: %d, %d - Indice corrente: %d - Valore: %f\n", i, j, index, pcc_values[index]);
-			index++;
+            pcc_values[index++] = fabsf(pcc_value);
         }
     }
 
 	free(p);
-
-	printf("Indice finale: %d\n", index);
 
     return pcc_values;
 }
