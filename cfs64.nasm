@@ -198,19 +198,15 @@ pcc_asm:
 		; vmovsd [medie],xmm1
     	; printsd medie
  		
-		mov r13,rsi  ; indice x
-		mov r14,rdx  ; indice y
+		mov r10,rsi  ; indice x
+		mov r11,rdx  ; indice y
 
-		movsd [media_x],xmm0
-		movsd [media_y],xmm1
+		vmovsd [media_x],xmm0
+		vmovsd [media_y],xmm1
 
         vbroadcastsd ymm0,[media_x] ; copia la media in tutto ymm0
-        ;vmovapd [medie],ymm0
-		;printpd medie,2
-
+        
 		vbroadcastsd ymm1,[media_y] ; copia la media in tutto ymm1
-        ;vmovapd [medie],ymm1
-		;printpd medie,2
 
 		xor r9,r9 ;indice scorrimento righe
 		vxorps ymm2,ymm2 ; diff_x
@@ -227,15 +223,15 @@ pcc_asm:
 		div rdi
 		sub r8,rdx
 
-	 	imul r13,[righe]
-		imul r14,[righe]
+	 	imul r10,[righe]
+		imul r11,[righe]
 	
         pcc_ciclo: 
 		    cmp r9,r8	
 			jge pcc_somma_par		
 
-			vmovapd ymm2,[rbx+r13*8]
-			vmovapd ymm3,[rbx+r14*8]
+			vmovapd ymm2,[rbx+r10*8]
+			vmovapd ymm3,[rbx+r11*8]
 
 			vsubpd ymm2,ymm0
 			vsubpd ymm3,ymm1
@@ -250,15 +246,13 @@ pcc_asm:
 			vmulpd ymm3,ymm3
 			vaddpd ymm6,ymm3 ;denominator_y
 
-			add r9,4
-			add r13,4
-			add r14,4
+			add r9d,4
+			add r10d,4
+			add r11d,4
  
             jmp pcc_ciclo
 
 		pcc_somma_par:
-		  ; vmovapd [medie],ymm5
-		  ; printpd medie,2
 		    vhaddpd ymm4,ymm4
 			vperm2f128 ymm7,ymm4,ymm4,0x01
 			vaddsd xmm4,xmm7
@@ -280,8 +274,8 @@ pcc_asm:
 		    cmp r9,[righe]
 		 	jge pcc_fine
 		   
-            vmovsd xmm2,[rbx+r13*8]
-		 	vmovsd xmm3,[rbx+r14*8]
+            vmovsd xmm2,[rbx+r10*8]
+		 	vmovsd xmm3,[rbx+r11*8]
 
 			vsubsd xmm2,xmm0
 			vsubsd xmm3,xmm1
@@ -296,9 +290,9 @@ pcc_asm:
 			vmulsd xmm3,xmm3
 			vaddsd xmm6,xmm3 ;denominator_y
             
-			add r9,1
-			add r13,1
-			add r14,1
+		    inc r9
+			inc r10
+			inc r11
             jmp pcc_residuo
 		pcc_fine:
 		    vsqrtsd xmm5,xmm5

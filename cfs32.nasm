@@ -7,18 +7,10 @@ section .data			; Sezione contenente dati inizializzati
 	righe  dd 0
 	colonne dd 0
 	costante dd 32
-	resto dd 0
 
 section .bss			; Sezione contenente dati non inizializzati
 	alignb 16
-	sc		 resd		1
-	medie    resd       1
-	somma    resd       1
-	prova1    resd      4
-	prova2    resd       1
-	indice    resd      1
-	risultato  resd     1
-
+	
 section .text			; Sezione contenente il codice macchina
 
 
@@ -86,16 +78,6 @@ pcc_asm:
 		; ------------------------------------------------------------
 
 		mov EAX, [EBP+input_pcc]	; indirizzo della struttura contenente i parametri
-        ; [EAX] input->ds; 			// dataset
-		; [EAX + 4] input->labels; 	// etichette
-		; [EAX + 8] input->out;	// vettore contenente risultato dim=(k+1)
-		; [EAX + 12] input->sc;		// score dell'insieme di features risultato
-		; [EAX + 16] input->k; 		// numero di features da estrarre
-		; [EAX + 20] input->N;		// numero di righe del dataset
-		; [EAX + 24] input->d;		// numero di colonne/feature del dataset
-		; [EAX + 28] input->display;
-		; [EAX + 32] input->silent;
-
 
 		mov ebx,[eax] ; dataset 
 		mov ecx,[eax+20] ; numero di righe N
@@ -104,10 +86,8 @@ pcc_asm:
 		movss xmm0,[ebp+mean_x] ; media feature x 
 		movss xmm1,[ebp+mean_y] ; media feature y
 
-		shufps xmm0,xmm0,0
-		shufps xmm1,xmm1,0
-	;	movups [prova1],xmm0
-	;	printps prova1,2 
+		shufps xmm0,xmm0,0 ; copia della media feature_y in tutto il registro xmm0
+		shufps xmm1,xmm1,0 ; copia della media feature_y in tutto il registro xmm1
 
 		xor esi,esi ;indice scorrimento righe
         
@@ -123,7 +103,7 @@ pcc_asm:
 		mov eax,[righe]
 		mov edi,4
 		div edi
-		sub ecx,edx
+		sub ecx,edx ; calcolo elementi da considerare senza residuo
 
 		mov edx,[ebp+feature_x]; indice feature x
 	    imul edx,[righe]; feature_x *N
@@ -132,7 +112,7 @@ pcc_asm:
 		imul edi,[righe] ; feature_y *N
 
 
-		pcc_ciclo:	 
+		pcc_ciclo:	; elementi presi a 4 alla volta
 		    cmp esi,ecx  
 			jge pcc_somma_par
 			movaps xmm2,[ebx+edx*4]
@@ -157,7 +137,7 @@ pcc_asm:
     
 			jmp pcc_ciclo
 
-		pcc_somma_par:
+		pcc_somma_par: ; riduzione a un unico float del numerator, denominator_x e denominator_y
 			haddps xmm4,xmm4
 			haddps xmm4,xmm4
 			haddps xmm5,xmm5
@@ -166,7 +146,7 @@ pcc_asm:
 			haddps xmm6,xmm6		
 			jmp pcc_residuo	
 		
-		pcc_residuo:
+		pcc_residuo: ; elementi della colonna residui
 			cmp esi,[righe]
 			jge pcc_fine
 			
@@ -193,7 +173,7 @@ pcc_asm:
 
 			jmp pcc_residuo
      
-        pcc_fine:
+        pcc_fine: ; calcolo pcc secondo la formula data
 			sqrtss xmm5,xmm5
 			sqrtss xmm6,xmm6
 			mulss xmm5,xmm6
@@ -201,8 +181,6 @@ pcc_asm:
 			xor eax,eax
 			mov eax,[ebp+output]
 			movss [eax],xmm4
-		   ; movss [prova1],xmm4
-		   ; printss prova1
 	       
 			
 		; ------------------------------------------------------------
@@ -235,16 +213,6 @@ pre_calculate_means_asm:
 		push		edi
 
 		mov EAX, [EBP+input_means]	; indirizzo della struttura contenente i parametri
-        ; [EAX] input->ds; 			// dataset
-		; [EAX + 4] input->labels; 	// etichette
-		; [EAX + 8] input->out;	// vettore contenente risultato dim=(k+1)
-		; [EAX + 12] input->sc;		// score dell'insieme di features risultato
-		; [EAX + 16] input->k; 		// numero di features da estrarre
-		; [EAX + 20] input->N;		// numero di righe del dataset
-		; [EAX + 24] input->d;		// numero di colonne/feature del dataset
-		; [EAX + 28] input->display;
-		; [EAX + 32] input->silent;
-
   	
 		mov ebx, [eax] ; indirizzo dataset
         mov ecx, [eax+20] ; numero di righe N
@@ -259,10 +227,10 @@ pre_calculate_means_asm:
 		mov eax,[righe]
 		mov edi,[costante]
 		div edi
-		sub ecx,edx
+		sub ecx,edx ; calcolo elementi senza residuo
 	
 		for_loop1:
-			cmp esi,[colonne];[colonne] ;colonne
+			cmp esi,[colonne] ;colonne
 			jge fine
 			xorps xmm0,xmm0 ; vettore usato per somma
 			xorps xmm1,xmm1
@@ -288,13 +256,10 @@ pre_calculate_means_asm:
 			addps xmm5,[ebx+eax*4+80]
 			addps xmm6,[ebx+eax*4+96]
 			addps xmm7,[ebx+eax*4+112]
-			;cvtsi2ss xmm5,edi
-			;movss [prova1],xmm5
-			;printss prova1	
 		    add edi,[costante]
 			jmp for_loop2;
 	
-		residuo:
+		residuo: ; calcolo delle somme degli elementi residui
 			cmp edi,[righe]
 		    jge media
 			xor eax,eax
@@ -305,7 +270,7 @@ pre_calculate_means_asm:
 			inc edi
 			jmp residuo
 			
-		media: 
+		media: ; calcolo della media della colonna j-esima
 		    addps xmm0,xmm7
 	        addps xmm1,xmm6
             addps xmm2,xmm5
@@ -315,12 +280,8 @@ pre_calculate_means_asm:
 	        addps xmm0,xmm1
 			haddps xmm0,xmm0
 			haddps xmm0,xmm0
-         	;movss [somma],xmm0 
-        	;printss somma
 			cvtsi2ss xmm7,[righe]
 			divss xmm0,xmm7
-			;movss [medie],xmm0
-		    ;printss medie
 			mov edi,[ebp+means]
 			movss [edi+esi*4],xmm0
 			inc esi

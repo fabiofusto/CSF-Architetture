@@ -247,7 +247,13 @@ VECTOR pre_calculate_pcc(params* input, VECTOR means) {
 
 /* 
 	Funzione che calcola l'indice corretto per accedere all'array dei pcc.
-   	L'indice si calcola partendo sempre dalla definizione del coefficiente binomiale.
+
+   	L'array dei pcc è un array unidimensionale che memorizza i pcc per ogni coppia di feature in un modo specifico.
+    Le coppie di feature sono ordinate in modo tale che la prima feature sia sempre minore della seconda.
+    L'indice per una specifica coppia di feature (feature_x, feature_y) viene calcolato utilizzando la formula del coefficiente binomiale.
+    La formula del coefficiente binomiale viene utilizzata per convertire l'indice di una matrice triangolare superiore in un indice di array unidimensionale.
+    Se feature_x è minore di feature_y, l'indice viene calcolato come il totale di coppie di feature meno il numero di coppie rimanenti nella riga corrente più la posizione corrente nella riga.
+    Se feature_x è maggiore di feature_y, l'indice viene calcolato in modo simile, ma con feature_x e feature_y scambiati.
 */
 int set_correct_index(int feature_x, int feature_y, int size) {
 	return (feature_x < feature_y) ? 

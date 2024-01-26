@@ -253,7 +253,6 @@ VECTOR pre_calculate_pcc(params* input, VECTOR means) {
 			pcc_asm(input, i, j, means[i], means[j], p);
 		   	type pcc_value = *p;
 
-
             // Memorizza il pcc nell'array
             pcc_values[index++] = fabsf(pcc_value);
         }
