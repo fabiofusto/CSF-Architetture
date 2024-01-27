@@ -3,7 +3,7 @@
 section .data			; Sezione contenente dati inizializzati
     colonne dq  0
 	righe   dq  0
-    costante dq 28
+    costante dq 60
 	indice_x dq 0
 	indice_y dq 0
 	media_x dq 0
@@ -13,6 +13,10 @@ section .data			; Sezione contenente dati inizializzati
 section .bss			; Sezione contenente dati non inizializzati
    
 alignb 32
+sc		resq		1
+medie   resq        4
+somme   resq        1
+prova   resq        1
 
 section .text			; Sezione contenente il codice macchina
 
@@ -59,6 +63,17 @@ pre_calculate_means_asm:
 		mov		rbp, rsp			; il Base Pointer punta al Record di Attivazione corrente
 		pushaq						; salva i registri generali
 
+		; RDI=indirizzo della struttura contenente i parametri
+        ; [RDI] input->ds; 			// dataset
+		; [RDI + 8] input->labels; 	// etichette
+		; [RDI + 16] input->out;	// vettore contenente risultato dim=(k+1)
+		; [RDI + 24] input->sc;		// score dell'insieme di features risultato
+		; [RDI + 32] input->k; 		// numero di features da estrarre
+		; [RDI + 36] input->N;		// numero di righe del dataset
+		; [RDI + 40] input->d;		// numero di colonne/feature del dataset
+		; [RDI + 44] input->display;
+		; [RDI + 48] input->silent;
+
 		mov rbx, [rdi] ; indirizzo dataset
         mov ecx, [rdi+36] ; numero di righe N
         mov edx, [rdi+40] ; numero di colonne d
@@ -66,6 +81,11 @@ pre_calculate_means_asm:
 		mov [righe],rcx
 		mov [colonne],rdx
 
+    ;   vcvtsi2sd xmm1,xmm1,[costante]
+	;	vmovsd [medie],xmm1
+	;	printsd medie
+    
+	  
 	    xor rdx,rdx
 		xor rdi,rdi
 		mov rax,[righe]	
@@ -74,8 +94,9 @@ pre_calculate_means_asm:
 		sub rcx,rdx
 
         xor r10,r10
+		xor r11,r11
 		
-		for_loop1: ; ciclo per iterare tutte le colonne
+		for_loop1:
 			cmp r10,[colonne];colonne
 			jge fine
 			vxorps ymm0,ymm0
@@ -86,8 +107,16 @@ pre_calculate_means_asm:
 			vxorps ymm5,ymm5
 			vxorps ymm6,ymm6
 			vxorps ymm7,ymm7
+			vxorps ymm8,ymm8
+			vxorps ymm9,ymm9
+			vxorps ymm10,ymm10
+			vxorps ymm11,ymm11
+			vxorps ymm12,ymm12
+			vxorps ymm13,ymm13
+			vxorps ymm14,ymm14
+			vxorps ymm15,ymm15
 			xor r9,r9
-		for_loop2: ; elementi presi a 28 alla volta per ogni singola colonna
+		for_loop2:
 		    cmp r9,rcx
 		    jge residuo
 			xor rax,rax
@@ -101,9 +130,17 @@ pre_calculate_means_asm:
 			vaddpd ymm5,[rbx+rax*8+128]
 			vaddpd ymm6,[rbx+rax*8+160]
 			vaddpd ymm7,[rbx+rax*8+192]
+			vaddpd ymm8,[rbx+rax*8+224]
+			vaddpd ymm9,[rbx+rax*8+256]
+		    vaddpd ymm10,[rbx+rax*8+288]
+			vaddpd ymm11,[rbx+rax*8+320]
+			vaddpd ymm12,[rbx+rax*8+352]
+			vaddpd ymm13,[rbx+rax*8+384]
+			vaddpd ymm14,[rbx+rax*8+416]
+			vaddpd ymm15,[rbx+rax*8+448]
 		    add r9,[costante]
 			jmp for_loop2;   
-		residuo: ; considerazione elementi residui
+		residuo:
 		    cmp r9,[righe]
 		    jge media
             xor rax,rax
@@ -113,13 +150,21 @@ pre_calculate_means_asm:
 			vaddsd xmm0,[rbx+rax*8]  
 	   		inc r9
 			jmp residuo
-		media:  ; calcolo media per ogni colonna
-	        vaddpd ymm1,ymm6
-		  	vaddpd ymm2,ymm5
-		  	vaddpd ymm3,ymm4
+		media:  
+	        vaddpd ymm1,ymm15
+		  	vaddpd ymm1,ymm14
+		  	vaddpd ymm2,ymm13
+		  	vaddpd ymm3,ymm12
+		  	vaddpd ymm4,ymm11
+		 	vaddpd ymm5,ymm10
+			vaddpd ymm6,ymm9
+		  	vaddpd ymm7,ymm8
 		  	vaddpd ymm1,ymm7
-		  	vaddpd ymm2,ymm3
-		 	vaddpd ymm1,ymm2
+		  	vaddpd ymm1,ymm6
+		  	vaddpd ymm2,ymm5
+		 	vaddpd ymm3,ymm4
+			vaddpd ymm3,ymm2
+			vaddpd ymm1,ymm3
 			vhaddpd ymm1,ymm1,ymm1	
 			vxorps ymm5,ymm5			
 			vperm2f128 ymm5,ymm1,ymm1,0x01
@@ -127,6 +172,8 @@ pre_calculate_means_asm:
 			vaddsd xmm1,xmm0
 			vcvtsi2sd xmm7,[righe]
 			vdivpd ymm1,ymm7
+			;vmovsd [medie],xmm1
+	    	;printsd medie
 		    vmovsd [rsi+r10*8],xmm1
 			inc r10
 			jmp for_loop1
@@ -153,21 +200,38 @@ pcc_asm:
 		mov		rbp, rsp			; il Base Pointer punta al Record di Attivazione corrente
 		pushaq						; salva i registri generali
 
+		; RDI=indirizzo della struttura contenente i parametri
+        ; [RDI] input->ds; 			// dataset
+		; [RDI + 8] input->labels; 	// etichette
+		; [RDI + 16] input->out;	// vettore contenente risultato dim=(k+1)
+		; [RDI + 24] input->sc;		// score dell'insieme di features risultato
+		; [RDI + 32] input->k; 		// numero di features da estrarre
+		; [RDI + 36] input->N;		// numero di righe del dataset
+		; [RDI + 40] input->d;		// numero di colonne/feature del dataset
+		; [RDI + 44] input->display;
+		; [RDI + 48] input->silent;
+
         mov rbx,[rdi] ;dataset
 		mov r8d,[rdi+36] ;numero di righe
 	    mov [righe],r8d
-	
+		; rsi registro indice x
+        ; rdx registro indice y
+	    ; rcx puntatore al valore da ritornare
+        
+        ; vcvtsi2sd xmm1,xmm1,rsi
+		; vmovsd [medie],xmm1
+    	; printsd medie
  		
-		mov r13,rsi  ; indice x
-		mov r14,rdx  ; indice y
+		mov r10,rsi  ; indice x
+		mov r11,rdx  ; indice y
 
-		movsd [media_x],xmm0
-		movsd [media_y],xmm1
+		vmovsd [media_x],xmm0
+		vmovsd [media_y],xmm1
 
-        vbroadcastsd ymm0,[media_x] ; copia la media in tutto ymm0
-      
+        vbroadcastsd ymm0,[media_x] ; copia la media in tutto 
+        
 		vbroadcastsd ymm1,[media_y] ; copia la media in tutto ymm1
-      
+
 		xor r9,r9 ;indice scorrimento righe
 		vxorps ymm2,ymm2 ; diff_x
 		vxorps ymm3,ymm3 ; diff_y
@@ -175,30 +239,61 @@ pcc_asm:
 		vxorps ymm5,ymm5 ; denominator_x
 		vxorps ymm6,ymm6 ; denominator_y
 		vxorps ymm7,ymm7 ; copia del registro xmm2 per mul
+		vxorps ymm8,ymm8 ; copia registro 
+		vxorps ymm10,ymm10 ; diff_x_2
+		vxorps ymm11,ymm11 ; diff_y_2
+		vxorps ymm12,ymm12 ; diff_x_3
+		vxorps ymm13,ymm13 ; diff_y_3
+		vxorps ymm14,ymm14 ; denominator_y
+		vxorps ymm15,ymm15 ; copia del registro xmm2 per mul
 		
 	    xor rdx,rdx
 		xor rdi,rdi
 		mov rax,[righe]	
-		mov rdi,4
+		mov rdi,16
 		div rdi
 		sub r8,rdx
 
-	 	imul r13,[righe]
-		imul r14,[righe]
+	 	imul r10,[righe]
+		imul r11,[righe]
 	
-        pcc_ciclo: ; considerazione elementi a 4 e 4 di ogni colonna
+        pcc_ciclo: 
 		    cmp r9,r8	
 			jge pcc_somma_par		
 
-			vmovapd ymm2,[rbx+r13*8]
-			vmovapd ymm3,[rbx+r14*8]
+			vmovapd ymm2,[rbx+r10*8]
+			vmovapd ymm3,[rbx+r11*8]
+			vmovapd ymm10,[rbx+r10*8+32]
+			vmovapd ymm11,[rbx+r11*8+32]
+			vmovapd ymm12,[rbx+r10*8+64]
+			vmovapd ymm13,[rbx+r11*8+64]
+			vmovapd ymm14,[rbx+r10*8+96]
+			vmovapd ymm15,[rbx+r11*8+96]
 
 			vsubpd ymm2,ymm0
 			vsubpd ymm3,ymm1
+			vsubpd ymm10,ymm0
+			vsubpd ymm11,ymm1
+			vsubpd ymm12,ymm0
+			vsubpd ymm13,ymm1
+			vsubpd ymm14,ymm0
+			vsubpd ymm15,ymm1
 
             vmovapd ymm7,ymm2
 			vmulpd ymm7,ymm3
 			vaddpd ymm4,ymm7
+
+			vmovapd ymm8,ymm10
+			vmulpd ymm8,ymm11
+			vaddpd ymm4,ymm8
+			
+            vmovapd ymm7,ymm12
+			vmulpd ymm7,ymm13
+			vaddpd ymm4,ymm7
+
+			vmovapd ymm8,ymm14
+			vmulpd ymm8,ymm15
+			vaddpd ymm4,ymm8
 
 			vmulpd ymm2,ymm2
 			vaddpd ymm5,ymm2 ;denominator_x
@@ -206,13 +301,31 @@ pcc_asm:
 			vmulpd ymm3,ymm3
 			vaddpd ymm6,ymm3 ;denominator_y
 
-			add r9,4
-			add r13,4
-			add r14,4
+			vmulpd ymm10,ymm10
+			vaddpd ymm5,ymm10 ;denominator_x
+
+			vmulpd ymm11,ymm11
+			vaddpd ymm6,ymm11 ;denominator_y
+
+			vmulpd ymm12,ymm12
+			vaddpd ymm5,ymm12 ;denominator_x
+
+			vmulpd ymm13,ymm13
+			vaddpd ymm6,ymm13 ;denominator_y
+
+			vmulpd ymm14,ymm14
+			vaddpd ymm5,ymm14 ;denominator_x
+
+			vmulpd ymm15,ymm15
+			vaddpd ymm6,ymm15 ;denominator_y
+
+			add r9,16
+			add r10,16
+			add r11,16
  
             jmp pcc_ciclo
 
-		pcc_somma_par: ;riduzione a un singolo double del numerator, denominator_x e denominator_y
+		pcc_somma_par:
 		    vhaddpd ymm4,ymm4
 			vperm2f128 ymm7,ymm4,ymm4,0x01
 			vaddsd xmm4,xmm7
@@ -224,18 +337,18 @@ pcc_asm:
 			vhaddpd ymm6,ymm6	
 			vperm2f128 ymm7,ymm6,ymm6,0x01
 			vaddsd xmm6,xmm7
-			
+
 		    vxorps xmm2,xmm2
 			vxorps xmm3,xmm3
 
             jmp pcc_residuo
 
-		pcc_residuo: ; considerazione degli elementi residui di ogni colonna
+		pcc_residuo:
 		    cmp r9,[righe]
 		 	jge pcc_fine
 		   
-            vmovsd xmm2,[rbx+r13*8]
-		 	vmovsd xmm3,[rbx+r14*8]
+            vmovsd xmm2,[rbx+r10*8]
+		 	vmovsd xmm3,[rbx+r11*8]
 
 			vsubsd xmm2,xmm0
 			vsubsd xmm3,xmm1
@@ -250,17 +363,20 @@ pcc_asm:
 			vmulsd xmm3,xmm3
 			vaddsd xmm6,xmm3 ;denominator_y
             
-			add r9,1
-			add r13,1
-			add r14,1
+		    inc r9
+			inc r10
+			inc r11
+			
             jmp pcc_residuo
-		pcc_fine: ; calcolo singolo pcc secondo la formula data
+		pcc_fine:
 		    vsqrtsd xmm5,xmm5
 			vsqrtsd xmm6,xmm6
 			vmulsd xmm5,xmm6
 			vdivsd xmm4,xmm5
 			mov rax,[rcx]
 			vmovsd [rcx],xmm4
+		  ;  movsd [prova],xmm4
+		  ;  printsd prova
 
 
 		; ------------------------------------------------------------

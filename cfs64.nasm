@@ -3,7 +3,7 @@
 section .data			; Sezione contenente dati inizializzati
     colonne dq  0
 	righe   dq  0
-    costante dq 28
+    costante dq 60
 	indice_x dq 0
 	indice_y dq 0
 	media_x dq 0
@@ -107,6 +107,14 @@ pre_calculate_means_asm:
 			vxorps ymm5,ymm5
 			vxorps ymm6,ymm6
 			vxorps ymm7,ymm7
+			vxorps ymm8,ymm8
+			vxorps ymm9,ymm9
+			vxorps ymm10,ymm10
+			vxorps ymm11,ymm11
+			vxorps ymm12,ymm12
+			vxorps ymm13,ymm13
+			vxorps ymm14,ymm14
+			vxorps ymm15,ymm15
 			xor r9,r9
 		for_loop2:
 		    cmp r9,rcx
@@ -122,6 +130,14 @@ pre_calculate_means_asm:
 			vaddpd ymm5,[rbx+rax*8+128]
 			vaddpd ymm6,[rbx+rax*8+160]
 			vaddpd ymm7,[rbx+rax*8+192]
+			vaddpd ymm8,[rbx+rax*8+224]
+			vaddpd ymm9,[rbx+rax*8+256]
+		    vaddpd ymm10,[rbx+rax*8+288]
+			vaddpd ymm11,[rbx+rax*8+320]
+			vaddpd ymm12,[rbx+rax*8+352]
+			vaddpd ymm13,[rbx+rax*8+384]
+			vaddpd ymm14,[rbx+rax*8+416]
+			vaddpd ymm15,[rbx+rax*8+448]
 		    add r9,[costante]
 			jmp for_loop2;   
 		residuo:
@@ -135,12 +151,20 @@ pre_calculate_means_asm:
 	   		inc r9
 			jmp residuo
 		media:  
-	        vaddpd ymm1,ymm6
-		  	vaddpd ymm2,ymm5
-		  	vaddpd ymm3,ymm4
+	        vaddpd ymm1,ymm15
+		  	vaddpd ymm1,ymm14
+		  	vaddpd ymm2,ymm13
+		  	vaddpd ymm3,ymm12
+		  	vaddpd ymm4,ymm11
+		 	vaddpd ymm5,ymm10
+			vaddpd ymm6,ymm9
+		  	vaddpd ymm7,ymm8
 		  	vaddpd ymm1,ymm7
-		  	vaddpd ymm2,ymm3
-		 	vaddpd ymm1,ymm2
+		  	vaddpd ymm1,ymm6
+		  	vaddpd ymm2,ymm5
+		 	vaddpd ymm3,ymm4
+			vaddpd ymm3,ymm2
+			vaddpd ymm1,ymm3
 			vhaddpd ymm1,ymm1,ymm1	
 			vxorps ymm5,ymm5			
 			vperm2f128 ymm5,ymm1,ymm1,0x01
@@ -204,7 +228,7 @@ pcc_asm:
 		vmovsd [media_x],xmm0
 		vmovsd [media_y],xmm1
 
-        vbroadcastsd ymm0,[media_x] ; copia la media in tutto ymm0
+        vbroadcastsd ymm0,[media_x] ; copia la media in tutto 
         
 		vbroadcastsd ymm1,[media_y] ; copia la media in tutto ymm1
 
@@ -215,11 +239,18 @@ pcc_asm:
 		vxorps ymm5,ymm5 ; denominator_x
 		vxorps ymm6,ymm6 ; denominator_y
 		vxorps ymm7,ymm7 ; copia del registro xmm2 per mul
+		vxorps ymm8,ymm8 ; copia registro 
+		vxorps ymm10,ymm10 ; diff_x_2
+		vxorps ymm11,ymm11 ; diff_y_2
+		vxorps ymm12,ymm12 ; diff_x_3
+		vxorps ymm13,ymm13 ; diff_y_3
+		vxorps ymm14,ymm14 ; denominator_y
+		vxorps ymm15,ymm15 ; copia del registro xmm2 per mul
 		
 	    xor rdx,rdx
 		xor rdi,rdi
 		mov rax,[righe]	
-		mov rdi,4
+		mov rdi,16
 		div rdi
 		sub r8,rdx
 
@@ -232,13 +263,37 @@ pcc_asm:
 
 			vmovapd ymm2,[rbx+r10*8]
 			vmovapd ymm3,[rbx+r11*8]
+			vmovapd ymm10,[rbx+r10*8+32]
+			vmovapd ymm11,[rbx+r11*8+32]
+			vmovapd ymm12,[rbx+r10*8+64]
+			vmovapd ymm13,[rbx+r11*8+64]
+			vmovapd ymm14,[rbx+r10*8+96]
+			vmovapd ymm15,[rbx+r11*8+96]
 
 			vsubpd ymm2,ymm0
 			vsubpd ymm3,ymm1
+			vsubpd ymm10,ymm0
+			vsubpd ymm11,ymm1
+			vsubpd ymm12,ymm0
+			vsubpd ymm13,ymm1
+			vsubpd ymm14,ymm0
+			vsubpd ymm15,ymm1
 
             vmovapd ymm7,ymm2
 			vmulpd ymm7,ymm3
 			vaddpd ymm4,ymm7
+
+			vmovapd ymm8,ymm10
+			vmulpd ymm8,ymm11
+			vaddpd ymm4,ymm8
+			
+            vmovapd ymm7,ymm12
+			vmulpd ymm7,ymm13
+			vaddpd ymm4,ymm7
+
+			vmovapd ymm8,ymm14
+			vmulpd ymm8,ymm15
+			vaddpd ymm4,ymm8
 
 			vmulpd ymm2,ymm2
 			vaddpd ymm5,ymm2 ;denominator_x
@@ -246,9 +301,27 @@ pcc_asm:
 			vmulpd ymm3,ymm3
 			vaddpd ymm6,ymm3 ;denominator_y
 
-			add r9d,4
-			add r10d,4
-			add r11d,4
+			vmulpd ymm10,ymm10
+			vaddpd ymm5,ymm10 ;denominator_x
+
+			vmulpd ymm11,ymm11
+			vaddpd ymm6,ymm11 ;denominator_y
+
+			vmulpd ymm12,ymm12
+			vaddpd ymm5,ymm12 ;denominator_x
+
+			vmulpd ymm13,ymm13
+			vaddpd ymm6,ymm13 ;denominator_y
+
+			vmulpd ymm14,ymm14
+			vaddpd ymm5,ymm14 ;denominator_x
+
+			vmulpd ymm15,ymm15
+			vaddpd ymm6,ymm15 ;denominator_y
+
+			add r9,16
+			add r10,16
+			add r11,16
  
             jmp pcc_ciclo
 
@@ -264,7 +337,7 @@ pcc_asm:
 			vhaddpd ymm6,ymm6	
 			vperm2f128 ymm7,ymm6,ymm6,0x01
 			vaddsd xmm6,xmm7
-			
+
 		    vxorps xmm2,xmm2
 			vxorps xmm3,xmm3
 
@@ -293,6 +366,7 @@ pcc_asm:
 		    inc r9
 			inc r10
 			inc r11
+			
             jmp pcc_residuo
 		pcc_fine:
 		    vsqrtsd xmm5,xmm5
