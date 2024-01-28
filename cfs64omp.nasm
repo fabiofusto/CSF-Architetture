@@ -13,10 +13,8 @@ section .data			; Sezione contenente dati inizializzati
 section .bss			; Sezione contenente dati non inizializzati
    
 alignb 32
-sc		resq		1
 medie   resq        4
 somme   resq        1
-prova   resq        1
 
 section .text			; Sezione contenente il codice macchina
 
@@ -63,28 +61,12 @@ pre_calculate_means_asm:
 		mov		rbp, rsp			; il Base Pointer punta al Record di Attivazione corrente
 		pushaq						; salva i registri generali
 
-		; RDI=indirizzo della struttura contenente i parametri
-        ; [RDI] input->ds; 			// dataset
-		; [RDI + 8] input->labels; 	// etichette
-		; [RDI + 16] input->out;	// vettore contenente risultato dim=(k+1)
-		; [RDI + 24] input->sc;		// score dell'insieme di features risultato
-		; [RDI + 32] input->k; 		// numero di features da estrarre
-		; [RDI + 36] input->N;		// numero di righe del dataset
-		; [RDI + 40] input->d;		// numero di colonne/feature del dataset
-		; [RDI + 44] input->display;
-		; [RDI + 48] input->silent;
-
 		mov rbx, [rdi] ; indirizzo dataset
         mov ecx, [rdi+36] ; numero di righe N
         mov edx, [rdi+40] ; numero di colonne d
 
 		mov [righe],rcx
 		mov [colonne],rdx
-
-    ;   vcvtsi2sd xmm1,xmm1,[costante]
-	;	vmovsd [medie],xmm1
-	;	printsd medie
-    
 	  
 	    xor rdx,rdx
 		xor rdi,rdi
@@ -172,8 +154,6 @@ pre_calculate_means_asm:
 			vaddsd xmm1,xmm0
 			vcvtsi2sd xmm7,[righe]
 			vdivpd ymm1,ymm7
-			;vmovsd [medie],xmm1
-	    	;printsd medie
 		    vmovsd [rsi+r10*8],xmm1
 			inc r10
 			jmp for_loop1
@@ -186,10 +166,7 @@ pre_calculate_means_asm:
 		ret				; torna alla funzione C chiamante
 
 
-
-
 global pcc_asm
-
 
 pcc_asm:
 
@@ -200,27 +177,9 @@ pcc_asm:
 		mov		rbp, rsp			; il Base Pointer punta al Record di Attivazione corrente
 		pushaq						; salva i registri generali
 
-		; RDI=indirizzo della struttura contenente i parametri
-        ; [RDI] input->ds; 			// dataset
-		; [RDI + 8] input->labels; 	// etichette
-		; [RDI + 16] input->out;	// vettore contenente risultato dim=(k+1)
-		; [RDI + 24] input->sc;		// score dell'insieme di features risultato
-		; [RDI + 32] input->k; 		// numero di features da estrarre
-		; [RDI + 36] input->N;		// numero di righe del dataset
-		; [RDI + 40] input->d;		// numero di colonne/feature del dataset
-		; [RDI + 44] input->display;
-		; [RDI + 48] input->silent;
-
         mov rbx,[rdi] ;dataset
 		mov r8d,[rdi+36] ;numero di righe
 	    mov [righe],r8d
-		; rsi registro indice x
-        ; rdx registro indice y
-	    ; rcx puntatore al valore da ritornare
-        
-        ; vcvtsi2sd xmm1,xmm1,rsi
-		; vmovsd [medie],xmm1
-    	; printsd medie
  		
 		mov r10,rsi  ; indice x
 		mov r11,rdx  ; indice y
@@ -375,10 +334,6 @@ pcc_asm:
 			vdivsd xmm4,xmm5
 			mov rax,[rcx]
 			vmovsd [rcx],xmm4
-		  ;  movsd [prova],xmm4
-		  ;  printsd prova
-
-
 		; ------------------------------------------------------------
 		; Sequenza di uscita dalla funzione
   

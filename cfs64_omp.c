@@ -233,11 +233,7 @@ type pcc(params* input, int feature_x, int feature_y, type mean_feature_x, type 
 }
 */
 
-/* 
-	Funzione che precalcola i valori del pcc per ogni coppia di feature.
-   	Restituisce un vettore di dimensione pari al numero di coppie di feature,
-   	che si calcola tramite l'applicazione della formula del coefficiente binomiale.
-*/
+// Funzione che precalcola i valori del pcc per ogni coppia di feature.
 VECTOR pre_calculate_pcc(params* input, VECTOR means) {
     VECTOR pcc_values = alloc_matrix(1, (input->d * (input->d - 1) / 2));
 
@@ -265,14 +261,10 @@ VECTOR pre_calculate_pcc(params* input, VECTOR means) {
         }
     }
 	
-
     return pcc_values;
 }
 
-/* 
-	Funzione che calcola l'indice corretto per accedere all'array dei pcc.
-   	L'indice si calcola partendo sempre dalla definizione del coefficiente binomiale.
-*/
+// Funzione che calcola l'indice corretto per accedere all'array dei pcc.
 int set_correct_index(int feature_x, int feature_y, int size) {
 	return (feature_x < feature_y) ? 
 		((size * (size-1)) / 2) - (((size - feature_x) * (size - feature_x - 1)) / 2) + (feature_y - feature_x - 1) :
@@ -313,6 +305,7 @@ type merit_score(params* input, int S_size, int feature, VECTOR means, VECTOR pb
 	// Calcola e restituisce il merito dell'insieme S corrente + la feature da analizzare
 	return (((type) S_size + 1) * mean_pbc) / sqrt(((type) S_size + 1) + ((type) S_size + 1) * ((type) S_size) * mean_pcc);
 }
+
 
 void cfs(params* input){
 	int S_size = 0;

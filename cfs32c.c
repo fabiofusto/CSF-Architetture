@@ -147,10 +147,6 @@ type pbc(params* input, int feature, type mean) {
 	/*
 		Variabili utili per la compensazione per la somma di Kahan.
 		La somma di Kahan, o somma compensata, è un metodo per sommare una sequenza di numeri in virgola mobile con un errore di arrotondamento ridotto.
-	
-		Il principio di base è di tenere traccia della somma cumulativa degli errori di arrotondamento in una variabile separata (c0 per la classe 0, c1 per la classe 1).
-		Questo errore cumulativo viene quindi sottratto dal prossimo numero da aggiungere, compensando così l'errore di arrotondamento.
-		In questo modo, l'errore totale della somma finale è molto più vicino a zero rispetto a quello che sarebbe con una somma normale.
 	*/ 
     type sum_diff_quad = 0.0f, c_diff = 0.0f;
     type c0 = 0.0f, c1 = 0.0f;
@@ -233,12 +229,7 @@ type pcc(params* input, int feature_x, int feature_y, type mean_feature_x, type 
 }
 */
 
-/* 
-	Funzione che precalcola i valori del pcc per ogni coppia di feature.
-	
-   	Restituisce un vettore di dimensione pari al numero di coppie di feature,
-   	che si calcola tramite l'applicazione della formula del coefficiente binomiale.
-*/
+// Funzione che precalcola i valori del pcc per ogni coppia di feature.
 VECTOR pre_calculate_pcc(params* input, VECTOR means) {
     VECTOR pcc_values = alloc_matrix(1, (input->d * (input->d - 1) / 2));
     type* p = (type*) malloc(sizeof(type));
@@ -263,16 +254,7 @@ VECTOR pre_calculate_pcc(params* input, VECTOR means) {
     return pcc_values;
 }
 
-/* 
-	Funzione che calcola l'indice corretto per accedere all'array dei pcc.
-
-   	L'array dei pcc è un array unidimensionale che memorizza i pcc per ogni coppia di feature in un modo specifico.
-    Le coppie di feature sono ordinate in modo tale che la prima feature sia sempre minore della seconda.
-    L'indice per una specifica coppia di feature (feature_x, feature_y) viene calcolato utilizzando la formula del coefficiente binomiale.
-    La formula del coefficiente binomiale viene utilizzata per convertire l'indice di una matrice triangolare superiore in un indice di array unidimensionale.
-    Se feature_x è minore di feature_y, l'indice viene calcolato come il totale di coppie di feature meno il numero di coppie rimanenti nella riga corrente più la posizione corrente nella riga.
-    Se feature_x è maggiore di feature_y, l'indice viene calcolato in modo simile, ma con feature_x e feature_y scambiati.
-*/
+// Funzione che calcola l'indice corretto per accedere all'array dei pcc.
 int set_correct_index(int feature_x, int feature_y, int size) {
 	return (feature_x < feature_y) ? 
 		((size * (size-1)) / 2) - (((size - feature_x) * (size - feature_x - 1)) / 2) + (feature_y - feature_x - 1) :
@@ -293,7 +275,6 @@ type merit_score(params* input, int S_size, int feature, VECTOR means, VECTOR pb
 
 		// Calcola la somma dei pcc dell'insieme S corrente + la feature da analizzare
 		index = set_correct_index(input->out[i], feature, input->d);
-		// printf("Coppia (%d, %d) -> Indice corretto: %d\n",input->out[i], feature, index);
 		pcc_sum += pcc_values[index];
 
 		// Calcola la somma dei pcc dell'insieme S corrente
@@ -315,8 +296,6 @@ type merit_score(params* input, int S_size, int feature, VECTOR means, VECTOR pb
 	return (((type) S_size + 1) * mean_pbc) / sqrtf(((type) S_size + 1) + ((type) S_size + 1) * ((type) S_size) * mean_pcc);
 }
 
-// Come accedere ad un elemento del dataset:	input->ds[i][j] = j * input->N + i
-// VALORI ATTESI k=5 -> score: 0.053390 features: [45,25,7,33,47]
 
 void cfs(params* input) {
 	int S_size = 0;
@@ -360,8 +339,6 @@ void cfs(params* input) {
 
 		// Aggiorna lo score
 		final_score = max_merit_score;
-
-		// printf("Feature scelta: %d, score: %f\n", max_merit_feature, max_merit_score);
 	
 		// Aggiungi la feature con il punteggio massimo ad S
 		input->out[S_size++] = max_merit_feature;
