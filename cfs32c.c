@@ -229,31 +229,6 @@ type pcc(params* input, int feature_x, int feature_y, type mean_feature_x, type 
 }
 */
 
-// Funzione che precalcola i valori del pcc per ogni coppia di feature.
-VECTOR pre_calculate_pcc(params* input, VECTOR means) {
-    VECTOR pcc_values = alloc_matrix(1, (input->d * (input->d - 1) / 2));
-    type* p = (type*) malloc(sizeof(type));
-
-	int index = 0;
-
-    // Calcola il pcc per ogni coppia di feature
-    for(int i = 0; i < input->d; i++) {
-        for(int j = i + 1; j < input->d; j++) {
-            // Calcola il pcc per la coppia di feature (i, j)
-			*p = 0.0f;
-			pcc_asm(input, i, j, means[i], means[j], p);
-		   	type pcc_value = *p;
-
-            // Memorizza il pcc nell'array
-            pcc_values[index++] = fabsf(pcc_value);
-        }
-    }
-
-	free(p);
-
-    return pcc_values;
-}
-
 // Funzione che calcola l'indice corretto per accedere all'array dei pcc.
 int set_correct_index(int feature_x, int feature_y, int size) {
 	return (feature_x < feature_y) ? 
@@ -275,11 +250,25 @@ type merit_score(params* input, int S_size, int feature, VECTOR means, VECTOR pb
 
 		// Calcola la somma dei pcc dell'insieme S corrente + la feature da analizzare
 		index = set_correct_index(input->out[i], feature, input->d);
+		if(pcc_values[index] == 0.0f) {
+			type* p = (type*) malloc(sizeof(type));
+            *p = 0.0f;
+            pcc_asm(input, input->out[i], feature, means[input->out[i]], means[feature], p);
+            pcc_values[index] = fabsf(*p);
+            free(p);
+		}
 		pcc_sum += pcc_values[index];
 
 		// Calcola la somma dei pcc dell'insieme S corrente
 		for(int j = i + 1; j < S_size; j++) {
 			index = set_correct_index(input->out[i], input->out[j], input->d);
+			if(pcc_values[index] == 0.0f) {
+				type* p = (type*) malloc(sizeof(type));
+				*p = 0.0f;
+				pcc_asm(input, input->out[i], input->out[j], means[input->out[i]], means[input->out[j]], p);
+				pcc_values[index] = fabsf(*p);
+				free(p);
+			}
         	pcc_sum += pcc_values[index];
 		}
 	}
@@ -313,7 +302,7 @@ void cfs(params* input) {
 	VECTOR pbc_values = pre_calculate_pbc(input, means);
 
 	// Vettore che contiene il pcc di ogni coppia di feature
-	VECTOR pcc_values = pre_calculate_pcc(input, means);
+	VECTOR pcc_values = (VECTOR) calloc(input->d * (input->d - 1) / 2, sizeof(type));
 	
 	while(S_size < input->k) {
 		type max_merit_score = -1.0f;
