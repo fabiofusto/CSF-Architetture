@@ -5,6 +5,7 @@
 #include <time.h>
 #include <libgen.h>
 #include <xmmintrin.h>
+#include <omp.h>
 
 #define	type		double
 #define	MATRIX		type*
@@ -107,13 +108,12 @@ void save_out(char* filename, type sc, int* X, int k) {
 
 // PROCEDURE ASSEMBLY
 //extern void prova(params* input);
-extern void pre_calculate_means_asm(params* input, type* means);
+extern void pre_calculate_means_asm(params* input, VECTOR means); 
 extern void pcc_asm(params* input, int feature_x, int feature_y, type mean_feature_x, type mean_feature_y, type* p);
-
 
 // Funzione che trasforma la matrice in column-major order
 void transform_to_column_major(params* input) {
-    MATRIX ds_column = alloc_matrix(input->d, input->N);
+    MATRIX ds_column = alloc_matrix(input->N, input->d);
 
     for(int i = 0; i < input->N; i++)
         for(int j = 0; j < input->d; j++) 
@@ -123,10 +123,25 @@ void transform_to_column_major(params* input) {
     input->ds = ds_column;
 }
 
+// Funzione che calcola il numero di thread da utilizzare
+int get_num_threads(int size) {
+    if (size % 6 == 0)
+        return 6;
+    else if (size % 4 == 0) 
+        return 4;
+    else if (size % 2 == 0) 
+        return 2;
+    else 
+        return 1;
+}
+
 /* Funzione che precalcola la media totale per ogni feature
 VECTOR pre_calculate_means(params* input) {
     VECTOR means = alloc_matrix(input->d, 1);
 
+    int num_threads = get_num_threads(input->d);
+    
+    #pragma omp parallel for num_threads(num_threads)
     for(int feature = 0; feature < input->d; feature++) {
         type sum = 0.0;
 
@@ -186,7 +201,10 @@ type pbc(params* input, int feature, type mean) {
 VECTOR pre_calculate_pbc(params* input, VECTOR means) {
 	VECTOR pbc_values = alloc_matrix(1, input->d);
 	
-	for(int feature = 0; feature < input->d; feature++) 
+    int num_threads = get_num_threads(input->d);
+
+	#pragma omp parallel for num_threads(num_threads)
+    for(int feature = 0; feature < input->d; feature++) 
 		pbc_values[feature] = pbc(input, feature, means[feature]);
 	
 	return pbc_values;
@@ -281,14 +299,16 @@ void cfs(params* input){
 	type final_score = 0.0;
 
 	// Vettore che contiene la media totale di ogni feature
-    VECTOR means = alloc_matrix(1, input->d);
-    pre_calculate_means_asm(input, means);
+	VECTOR means = alloc_matrix(1, input->d);
+	pre_calculate_means_asm(input, means);
 	
 	// Vettore che contiene il pbc di ogni feature
 	VECTOR pbc_values = pre_calculate_pbc(input, means);
 
 	// Vettore che contiene il pcc di ogni coppia di feature
 	VECTOR pcc_values = (VECTOR) calloc(input->d * (input->d - 1) / 2, sizeof(type));
+
+	int num_threads = get_num_threads(input->d);
 	
 	while(S_size < input->k) {
 		type max_merit_score = -1.0;
@@ -298,17 +318,29 @@ void cfs(params* input){
 			Calcola il merito per ogni feature non presente ancora in S,
 			trova la feature con il merito massimo e la aggiunge al'insieme S
 		*/
-		for(int feature = 0; feature < input->d; feature++) {
-			// Salta la feature se è già in S
-			if(is_feature_in_S[feature]) continue;
+		#pragma omp parallel num_threads(num_threads)
+		{
+			type local_max_merit_score = -1.0;
+			int local_max_merit_feature = -1;
 
-			// Calcola il merito per S U {i}
-			type merit = merit_score(input, S_size, feature, means, pbc_values, pcc_values);
+			#pragma omp for
+			for (int feature = 0; feature < input->d; feature++) {
+				if (is_feature_in_S[feature]) continue;
 
-			// Aggiorna la feature con il punteggio massimo
-			if(merit > max_merit_score) {
-				max_merit_score = merit;
-				max_merit_feature = feature;
+				type merit = merit_score(input, S_size, feature, means, pbc_values, pcc_values);
+
+				if (merit > local_max_merit_score) {
+					local_max_merit_score = merit;
+					local_max_merit_feature = feature;
+				}
+			} 
+			
+			#pragma omp critical
+			{
+				if (local_max_merit_score > max_merit_score) {
+					max_merit_score = local_max_merit_score;
+					max_merit_feature = local_max_merit_feature;
+				}
 			}
 		}
 
@@ -350,8 +382,6 @@ int main(int argc, char** argv) {
 
 	input->silent = 0;
 	input->display = 0;
-
-
 
 	//
 	// Visualizza la sintassi del passaggio dei parametri da riga comandi
@@ -426,13 +456,13 @@ int main(int argc, char** argv) {
 	}
 
 
-	input->ds = load_data(dsfilename, &input->N, &input->d);
+	input->ds = load_data("./test/"+dsfilename, &input->N, &input->d);
 
 	// Trasforma la matrice in column-major order
     transform_to_column_major(input);
 
 	int nl, dl;
-	input->labels = load_data(labelsfilename, &nl, &dl);
+	input->labels = load_data("./test/"+labelsfilename, &nl, &dl);
 	
 	if(nl != input->N || dl != 1){
 		printf("Invalid size of labels file, should be %ix1!\n", input->N);
@@ -463,10 +493,14 @@ int main(int argc, char** argv) {
 	// Correlation Features Selection
 	//
 
-	t = clock();
+	// t = clock();
+	// cfs(input);
+	// t = clock() - t;
+	// time = ((float)t)/CLOCKS_PER_SEC;
+    type start = omp_get_wtime(), end;
 	cfs(input);
-	t = clock() - t;
-	time = ((float)t)/CLOCKS_PER_SEC;
+	end = omp_get_wtime();
+	time = end - start;
 
 	if(!input->silent)
 		printf("CFS time = %.3f secs\n", time);
