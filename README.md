@@ -11,7 +11,7 @@ Search "Correlation Feature Selection" for major details.
 
 You can run the project using the attached test files and specifying the architecture you want to use (32 or 64) with this command:
 ```bash
-./run<ARCH> -ds "test_5000_50_<ARCH>.ds" -labels "test_5000_50_<ARCH>.labels" -k 5 -d
+./runcfs<ARCH> -ds "test_5000_50_<ARCH>.ds" -labels "test_5000_50_<ARCH>.labels" -k 5 -d
 ```
 Feel free to contact me to have more test files.
 
